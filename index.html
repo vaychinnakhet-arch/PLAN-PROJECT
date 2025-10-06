@@ -241,6 +241,7 @@
                         <button id="btn-save-project" class="dropdown-item"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>Save Project as JSON</button>
                         <button id="btn-load-project" class="dropdown-item"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>Load Project from JSON</button>
                         <button id="btn-export-csv" class="dropdown-item"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>Export Project as CSV</button>
+                        <button id="btn-export-excel" class="dropdown-item"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>Export Project as Excel</button>
                     </div>
                 </div>
             </div>
@@ -844,6 +845,117 @@
             }
         };
 
+        const exportProjectToExcel = () => {
+            try {
+                if (state.tasks.length === 0) {
+                    showNotification('ข้อมูลว่าง', 'ไม่มี Task ที่จะส่งออก');
+                    return;
+                }
+
+                const tasksById = new Map(state.tasks.map(t => [t.id, t]));
+                const getTaskLevel = (taskId) => {
+                    let level = 0;
+                    let task = tasksById.get(taskId);
+                    while(task && task.parentId !== null) {
+                        task = tasksById.get(task.parentId);
+                        if (!task) break;
+                        level++;
+                    }
+                    return level;
+                };
+
+                let tableHtml = `
+                    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+                    <head>
+                        <meta charset="UTF-8">
+                        <!--[if gte mso 9]>
+                        <xml>
+                            <x:ExcelWorkbook>
+                                <x:ExcelWorksheets>
+                                    <x:ExcelWorksheet>
+                                        <x:Name>${state.projectName}</x:Name>
+                                        <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+                                    </x:ExcelWorksheet>
+                                </x:ExcelWorksheets>
+                            </x:ExcelWorkbook>
+                        </xml>
+                        <![endif]-->
+                        <style>
+                            table, th, td { border: 1px solid black; border-collapse: collapse; }
+                            th, td { padding: 5px; text-align: left; vertical-align: middle; }
+                            th { background-color: #f2f2f2; font-weight: bold; }
+                        </style>
+                    </head>
+                    <body>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Task Name</th>
+                                    <th>Duration (days)</th>
+                                    <th>Planned Start</th>
+                                    <th>Planned End</th>
+                                    <th>Actual Start</th>
+                                    <th>Actual End</th>
+                                    <th>Progress (%)</th>
+                                    <th>Dependencies</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                const addRowsForTask = (task) => {
+                    const level = getTaskLevel(task.id);
+                    const indent = '&nbsp;'.repeat(level * 4);
+                    const isParent = state.tasks.some(t => t.parentId === task.id);
+                    const fontWeight = isParent || task.parentId === null ? 'font-weight: bold;' : '';
+                    
+                    let rootParent = task;
+                    while (rootParent.parentId !== null) {
+                        const parent = tasksById.get(rootParent.parentId);
+                        if (!parent) break;
+                        rootParent = parent;
+                    }
+                    const taskColor = rootParent.color;
+                    const bgColor = taskColor ? `background-color: ${lightenHexColor(taskColor, 90)};` : '';
+
+                    tableHtml += `
+                        <tr style="${bgColor}">
+                            <td>${task.id}</td>
+                            <td style="${fontWeight}">${indent}${task.name}</td>
+                            <td>${task.duration || 0}</td>
+                            <td>${formatDate(task.start)}</td>
+                            <td>${formatDate(task.end)}</td>
+                            <td>${formatDate(task.actualStart)}</td>
+                            <td>${formatDate(task.actualEnd)}</td>
+                            <td>${task.progress || 0}</td>
+                            <td>${task.dependencies || ''}</td>
+                        </tr>
+                    `;
+
+                    const children = state.tasks.filter(t => t.parentId === task.id);
+                    children.forEach(addRowsForTask);
+                };
+                
+                state.tasks.filter(t => t.parentId === null).forEach(addRowsForTask);
+
+                tableHtml += `</tbody></table></body></html>`;
+
+                const blob = new Blob([tableHtml], { type: 'application/vnd.ms-excel' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', `${state.projectName.replace(/[^a-z0-9]/gi, '_')}.xls`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Failed to export Excel:', error);
+                showNotification('ข้อผิดพลาด', 'ไม่สามารถส่งออกเป็น Excel ได้');
+            }
+        };
+
 
         // --- CORE LOGIC ---
         const updateParentDates = (childId) => {
@@ -1098,11 +1210,15 @@
         
         const renderTaskList = () => {
             const taskHeaderHtml = `
-                <div class="col-span-5 p-2 border-r flex items-center">รายละเอียดงาน</div> <div class="col-span-1 p-2 border-r flex items-center justify-center">ระยะเวลา</div>
-                <div class="col-span-2 p-2 border-r flex items-center justify-center">วันเริ่มแผน</div> ${state.viewMode === 'update' ? '<div class="col-span-2 p-2 border-r flex items-center justify-center">วันเริ่มจริง</div>' : ''}
-                <div class="col-span-2 p-2 ${state.viewMode === 'update' ? 'border-r' : ''} flex items-center justify-center">วันเสร็จแผน</div> ${state.viewMode === 'update' ? '<div class="col-span-2 p-2 flex items-center justify-center">วันเสร็จจริง</div>' : ''}`;
+                <div class="col-span-5 p-2 border-r flex items-center font-semibold">ชื่องาน</div>
+                <div class="col-span-1 p-2 border-r flex items-center justify-center font-semibold">เวลา</div>
+                <div class="col-span-2 p-2 border-r flex items-center justify-center font-semibold">เริ่มแผน</div>
+                ${state.viewMode === 'update' ? '<div class="col-span-2 p-2 border-r flex items-center justify-center font-semibold">เริ่มจริง</div>' : ''}
+                <div class="col-span-2 p-2 ${state.viewMode === 'update' ? 'border-r' : ''} flex items-center justify-center font-semibold">เสร็จแผน</div>
+                ${state.viewMode === 'update' ? '<div class="col-span-2 p-2 flex items-center justify-center font-semibold">เสร็จจริง</div>' : ''}`;
+            
             taskGridHeader.innerHTML = taskHeaderHtml;
-            taskGridHeader.className = `grid ${state.viewMode === 'update' ? 'grid-cols-14' : 'grid-cols-10'} border-b-2 border-[var(--border-color)] text-lg font-semibold text-[var(--text-primary)] flex-shrink-0 bg-white z-10`;
+            taskGridHeader.className = `grid ${state.viewMode === 'update' ? 'grid-cols-14' : 'grid-cols-10'} border-b-2 border-[var(--border-color)] text-xs text-[var(--text-secondary)] flex-shrink-0 bg-white z-10`;
 
             const renderTaskRow = (task, level, isParentCollapsed) => {
                 if (isParentCollapsed) return '';
@@ -1535,6 +1651,7 @@
             document.getElementById('btn-load-project').addEventListener('click', triggerLoadProject);
             document.getElementById('load-project-input').addEventListener('change', loadProjectFromFile);
             document.getElementById('btn-export-csv').addEventListener('click', exportProjectToCSV);
+            document.getElementById('btn-export-excel').addEventListener('click', exportProjectToExcel);
 
             document.getElementById('btn-add-task').addEventListener('click', () => newTaskInput.focus());
             document.getElementById('btn-export-image').addEventListener('click', () => {
