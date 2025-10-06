@@ -1,0 +1,1828 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Management Tool</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- html2canvas for image export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Custom Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #3b82f6; /* blue-500 */
+            --primary-hover: #2563eb; /* blue-600 */
+            --critical-color: #ef4444; /* red-500 */
+            --header-bg: #f8fafc; /* cool-gray-50 */
+            --panel-bg: #ffffff;
+            --border-color: #e5e7eb; /* gray-200 */
+            --text-primary: #1f2937; /* gray-800 */
+            --text-secondary: #6b7280; /* gray-500 */
+            --holiday-bg: #f1f5f9; /* slate-100 */
+        }
+        body {
+            font-family: 'Sarabun', sans-serif;
+            color: var(--text-primary);
+            overscroll-behavior: none;
+        }
+        .gantt-chart-container::-webkit-scrollbar,
+        .task-grid-container::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .gantt-chart-container::-webkit-scrollbar-thumb,
+        .task-grid-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .gantt-chart-container::-webkit-scrollbar-track,
+        .task-grid-container::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .panel-resizer {
+            cursor: col-resize;
+            width: 6px;
+            background-color: transparent;
+            transition: background-color 0.2s;
+            position: relative;
+            z-index: 20;
+        }
+        .panel-resizer:hover {
+            background-color: var(--primary-color);
+        }
+        .task-bar {
+            transition: all 0.2s ease-in-out;
+            overflow: hidden;
+        }
+        .task-bar:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .milestone {
+            transform-origin: center;
+        }
+        .dependency-line {
+            stroke: var(--text-secondary);
+            stroke-width: 1.5;
+            fill: none;
+            marker-end: url(#arrowhead);
+        }
+        .critical-path .dependency-line {
+             stroke: var(--critical-color);
+        }
+        .today-marker {
+            stroke: var(--critical-color);
+            stroke-width: 2px;
+            stroke-dasharray: 4 4;
+        }
+        [data-mode="presentation"] .update-only { display: none; }
+        [data-mode="update"] .presentation-only { display: none; }
+        .collapse-icon {
+            transition: transform 0.2s;
+        }
+        .collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+        .control-btn-group {
+            @apply flex items-center p-1 bg-gray-100 rounded-xl border border-gray-200 space-x-1;
+        }
+        .holiday-text-vertical {
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            letter-spacing: 2px;
+            opacity: 0.4;
+        }
+        /* Dropdown Styles */
+        .dropdown { position: relative; }
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            z-index: 1000;
+            display: none;
+            min-width: 240px;
+            background-color: white;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            padding: 0.5rem;
+            animation: fadeIn 0.1s ease-out;
+        }
+        .dropdown.show .dropdown-menu {
+            display: block;
+        }
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            text-align: left;
+            border-radius: 0.375rem;
+            transition: background-color 0.2s;
+            color: var(--text-primary);
+        }
+        .dropdown-item:hover {
+            background-color: #f3f4f6; /* gray-100 */
+        }
+        .dropdown-item svg {
+            margin-right: 0.75rem;
+            width: 20px;
+            height: 20px;
+            color: var(--text-secondary);
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Calendar Styles */
+        .calendar-day {
+            min-height: 120px;
+        }
+        .calendar-day-number {
+            width: 28px;
+            height: 28px;
+        }
+        .calendar-day.today .calendar-day-number {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .calendar-task-bar {
+            left: 2px;
+            right: 2px;
+            height: 22px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .calendar-task-bar:hover {
+            transform: scale(1.02);
+            z-index: 10;
+        }
+        .calendar-day-header {
+            writing-mode: horizontal-tb;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 overflow-hidden h-screen flex flex-col">
+
+    <!-- Header -->
+    <header id="main-header" class="bg-[var(--header-bg)] border-b border-[var(--border-color)] px-4 py-2 flex items-center justify-between flex-shrink-0 z-30">
+        <div class="flex items-center gap-4">
+            <h1 id="project-name" contenteditable="true" class="text-xl font-bold text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--primary-color)] rounded-md px-2">โครงการตัวอย่าง</h1>
+            <span id="current-date" class="text-sm text-[var(--text-secondary)] font-medium"></span>
+        </div>
+        
+        <!-- View Switcher -->
+        <div class="absolute left-1/2 -translate-x-1/2">
+             <div id="view-switcher" class="relative bg-gray-200 p-1 rounded-lg flex text-sm font-medium w-48 shadow-inner">
+                <div id="view-switch-bg" class="absolute top-[4px] left-[4px] h-[calc(100%-8px)] w-[calc(50%-4px)] bg-white shadow rounded-md transition-transform duration-300 ease-in-out"></div>
+                <button id="btn-gantt-view" class="relative z-10 py-1 rounded-md text-gray-900 w-1/2 transition-colors duration-300">Gantt</button>
+                <button id="btn-calendar-view" class="relative z-10 py-1 rounded-md text-gray-500 w-1/2 transition-colors duration-300">ปฏิทิน</button>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <!-- Mode Switch -->
+            <div id="mode-switch" class="flex items-center gap-2 text-sm font-medium">
+                <span id="mode-label">โหมดนำเสนอ</span>
+                <button id="mode-toggle-btn" class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <span class="sr-only">Toggle Mode</span>
+                    <span id="mode-toggle-dot" class="inline-block w-4 h-4 transform bg-white rounded-full transition-transform translate-x-1"></span>
+                </button>
+            </div>
+            
+            <div class="h-6 w-px bg-gray-300"></div>
+
+            <!-- Contextual Controls -->
+            <div id="contextual-controls" class="flex items-center gap-2">
+                <!-- GANTT ONLY Controls -->
+                <div id="gantt-controls" class="flex items-center gap-2">
+                    <!-- View Options -->
+                    <div class="dropdown">
+                        <button class="dropdown-toggle control-btn" title="View Options">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                        </button>
+                        <div class="dropdown-menu">
+                            <button id="btn-set-baseline" class="dropdown-item"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>Set Baseline</button>
+                            <button id="btn-show-baseline" class="dropdown-item"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>Show Baseline</button>
+                            <button id="btn-critical-path" class="dropdown-item"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>Show Critical Path</button>
+                            <button id="btn-gridlines" class="dropdown-item"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>Toggle Gridlines</button>
+                        </div>
+                    </div>
+
+                    <!-- Calendar Options -->
+                    <div class="dropdown">
+                         <button class="dropdown-toggle control-btn" title="Calendar Options">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M7 14h.01M12 14h.01M17 14h.01M7 18h.01M12 18h.01M17 18h.01"></path></svg>
+                        </button>
+                        <div class="dropdown-menu">
+                            <button id="btn-toggle-sundays" class="dropdown-item"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8"></path><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><polyline points="16 20 18 22 22 18"></polyline></svg>ทำงานวันอาทิตย์</button>
+                            <button id="btn-toggle-holidays" class="dropdown-item"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>ทำงานวันหยุดนักขัตฤกษ์</button>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Group -->
+                    <div class="control-btn-group">
+                        <button id="btn-zoom-out" class="control-btn" title="Zoom Out"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="8" x2="14" y1="11" y2="11"/></svg></button>
+                        <button id="btn-zoom-in" class="control-btn" title="Zoom In"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="11" x2="11" y1="8" y2="14"/><line x1="8" x2="14" y1="11" y2="11"/></svg></button>
+                        <button id="btn-goto-today" class="control-btn" title="Go to Today"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><circle cx="12" cy="16" r="1.5"></circle></svg></button>
+                    </div>
+                </div>
+
+                <!-- Project Actions -->
+                <div class="dropdown">
+                    <button class="dropdown-toggle control-btn" title="Project Actions">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
+                    </button>
+                    <div class="dropdown-menu">
+                        <button id="btn-save-project" class="dropdown-item"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>Save Project as JSON</button>
+                        <button id="btn-load-project" class="dropdown-item"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>Load Project from JSON</button>
+                        <button id="btn-export-csv" class="dropdown-item"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>Export Project as CSV</button>
+                    </div>
+                </div>
+            </div>
+
+            <input type="file" id="load-project-input" class="hidden" accept=".json">
+
+            <div class="h-6 w-px bg-gray-300"></div>
+
+            <!-- Main Actions -->
+            <div class="flex items-center gap-2">
+                <button id="btn-export-image" class="main-btn-secondary"><svg class="mr-2" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>ส่งออกเป็นภาพ</button>
+                <button id="btn-add-task" class="main-btn-primary"><svg class="mr-2" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>เพิ่ม Task</button>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Main Content -->
+    <main id="main-content" class="flex-grow flex flex-col overflow-hidden bg-white">
+        <!-- Gantt View Container -->
+        <div id="gantt-view" class="flex-grow flex overflow-hidden">
+            <!-- Task Panel -->
+            <div id="task-panel" class="bg-[var(--panel-bg)] flex flex-col w-1/3 overflow-hidden">
+                <!-- Task Grid Header -->
+                <div id="task-grid-header" class="grid grid-cols-12 border-b-2 border-[var(--border-color)] text-xs font-semibold text-[var(--text-secondary)] flex-shrink-0 bg-white z-10">
+                    <!-- Content generated by JS -->
+                </div>
+                <div id="task-grid-container" class="flex-grow overflow-auto relative">
+                    <!-- Task Grid Body -->
+                    <div id="task-grid-body"></div>
+                </div>
+                <!-- Add New Task Input -->
+                <div class="p-2 border-t border-[var(--border-color)] flex-shrink-0">
+                    <input type="text" id="new-task-input" placeholder="+ เพิ่ม Task ใหม่แล้วกด Enter..." class="w-full text-sm px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] transition">
+                </div>
+            </div>
+            
+            <!-- Resizer -->
+            <div id="panel-resizer" class="panel-resizer"></div>
+
+            <!-- Gantt Panel -->
+            <div id="gantt-panel" class="flex-grow bg-[var(--panel-bg)] flex flex-col overflow-hidden">
+                <!-- Gantt Header -->
+                <div id="gantt-header" class="flex-shrink-0 border-b-2 border-[var(--border-color)] bg-gray-50/50 relative overflow-hidden"></div>
+                <!-- Gantt Chart -->
+                <div id="gantt-chart-container" class="flex-grow overflow-auto relative">
+                    <div id="gantt-grid" class="absolute top-0 left-0 h-full z-0"></div>
+                    <div id="gantt-bars-container" class="absolute top-0 left-0 h-full z-10"></div>
+                    <svg id="gantt-deps-svg" class="absolute top-0 left-0 w-full h-full pointer-events-none z-20"></svg>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Calendar View Container -->
+        <div id="calendar-view" class="hidden flex-grow flex flex-col p-4">
+            <!-- Calendar Header -->
+            <div id="calendar-header" class="flex items-center justify-between mb-4 px-2">
+                <div class="flex items-center gap-4">
+                    <button id="calendar-prev-btn" class="p-2 rounded-full hover:bg-gray-100"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+                    <button id="calendar-next-btn" class="p-2 rounded-full hover:bg-gray-100"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+                    <button id="calendar-today-btn" class="text-sm font-semibold px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">วันนี้</button>
+                </div>
+                <h2 id="calendar-month-year" class="text-xl font-bold"></h2>
+            </div>
+            <!-- Calendar Grid -->
+            <div class="flex-grow flex flex-col">
+                <div id="calendar-days-header" class="grid grid-cols-7 text-center font-semibold text-sm text-gray-500 py-2">
+                    <!-- Day names generated by JS -->
+                </div>
+                <div id="calendar-grid-container" class="flex-grow grid grid-cols-7 grid-rows-6 gap-px bg-gray-200 border border-gray-200 rounded-lg overflow-hidden relative">
+                    <!-- Days and tasks will be generated by JS -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+    
+    <!-- Task Edit Modal -->
+    <div id="edit-task-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6 relative animate-fade-in-down">
+             <button id="close-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+             </button>
+             <h2 class="text-xl font-bold mb-4">แก้ไข Task</h2>
+             <form id="edit-task-form">
+                 <input type="hidden" id="task-id-input">
+                 <div class="grid grid-cols-1 gap-4">
+                     <div>
+                         <label for="task-name-input" class="block text-sm font-medium text-gray-700">ชื่อ Task</label>
+                         <input type="text" id="task-name-input" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                     </div>
+
+                    <div>
+                        <label for="task-parent-select" class="block text-sm font-medium text-gray-700">อยู่ภายใต้งาน (Parent Task)</label>
+                        <select id="task-parent-select" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                            <option value="null">-- ไม่มี (งานหลัก) --</option>
+                        </select>
+                    </div>
+                     
+                    <!-- Scheduling Mode -->
+                    <div class="border-t pt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">การกำหนดเวลา (Scheduling)</label>
+                        <div class="flex gap-6">
+                            <div class="flex items-center">
+                                <input type="radio" id="sched-manual" name="scheduling-mode" value="manual" checked class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                <label for="sched-manual" class="ml-2 block text-sm text-gray-900">กำหนดด้วยตนเอง</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="radio" id="sched-auto" name="scheduling-mode" value="auto" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                <label for="sched-auto" class="ml-2 block text-sm text-gray-900">อัตโนมัติ (จาก Dependencies)</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Date & Duration Inputs Container -->
+                    <div id="date-duration-container" class="grid grid-cols-3 gap-4">
+                         <div>
+                            <label for="task-duration-input" class="block text-sm font-medium text-gray-700">ระยะเวลา (วันทำงาน)</label>
+                            <input type="number" id="task-duration-input" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-white" placeholder="เช่น 5">
+                        </div>
+                         <div>
+                             <label for="task-start-input" class="block text-sm font-medium text-gray-700">วันเริ่มแผน</label>
+                             <input type="date" id="task-start-input" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-white">
+                         </div>
+                         <div>
+                             <label for="task-end-input" class="block text-sm font-medium text-gray-700">วันเสร็จแผน</label>
+                             <input type="date" id="task-end-input" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-white">
+                         </div>
+                    </div>
+
+                    <div class="update-only grid grid-cols-2 gap-4">
+                         <div>
+                             <label for="task-actual-start-input" class="block text-sm font-medium text-gray-700">วันเริ่มจริง</label>
+                             <input type="date" id="task-actual-start-input" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                         </div>
+                         <div>
+                             <label for="task-actual-end-input" class="block text-sm font-medium text-gray-700">วันเสร็จจริง</label>
+                             <input type="date" id="task-actual-end-input" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                         </div>
+                    </div>
+
+                     <div class="col-span-2 update-only">
+                         <label for="task-progress-input" class="block text-sm font-medium text-gray-700">ความคืบหน้า (<span id="progress-value">0</span>%)</label>
+                         <input type="range" id="task-progress-input" min="0" max="100" class="mt-1 block w-full">
+                     </div>
+
+                      <div class="border-t pt-4 mt-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">งานที่ต้องทำก่อนหน้า (Predecessor)</label>
+                        <div class="grid grid-cols-12 gap-2 items-center">
+                            <div class="col-span-7">
+                                <select id="dep-task-select" class="block w-full rounded-md border-gray-300 shadow-sm">
+                                    <option value="">-- ไม่มี --</option>
+                                </select>
+                            </div>
+                            <div class="col-span-3">
+                                 <select id="dep-type-select" class="block w-full rounded-md border-gray-300 shadow-sm">
+                                    <option value="FS">Finish-Start</option>
+                                    <option value="SS">Start-Start</option>
+                                    <option value="FF">Finish-Finish</option>
+                                    <option value="SF">Start-Finish</option>
+                                 </select>
+                            </div>
+                            <div class="col-span-2 relative">
+                                <input type="number" id="dep-lag-input" value="0" class="block w-full rounded-md border-gray-300 shadow-sm pr-6" placeholder="Lag">
+                                <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500">วัน</span>
+                            </div>
+                        </div>
+                    </div>
+                 </div>
+                 <div class="mt-6 flex justify-end gap-3">
+                     <button type="button" id="delete-task-btn" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition">ลบ Task</button>
+                     <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">บันทึก</button>
+                 </div>
+             </form>
+        </div>
+    </div>
+    
+    <!-- Export Options Modal -->
+    <div id="export-options-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6 text-center animate-fade-in-down">
+            <h3 class="text-lg font-medium mb-4">เลือกรูปแบบการส่งออก</h3>
+            <div class="space-y-3">
+                <button id="btn-export-current-view" class="w-full px-4 py-2 bg-white text-gray-700 rounded-md border border-gray-300 hover:bg-gray-50 transition">
+                    มุมมองปัจจุบัน (Current View)
+                </button>
+                <button id="btn-export-full-project" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                    ทั้งโครงการ (Widescreen)
+                </button>
+            </div>
+             <button id="close-export-modal-btn" class="mt-4 text-sm text-gray-500 hover:text-gray-700">ยกเลิก</button>
+        </div>
+    </div>
+
+    <!-- Custom Notification/Alert Modal -->
+    <div id="notification-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6 text-center">
+            <h3 id="notification-title" class="text-lg font-medium mb-2"></h3>
+            <p id="notification-message" class="text-sm text-gray-600 mb-4"></p>
+            <button id="notification-ok-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">ตกลง</button>
+        </div>
+    </div>
+    
+    <!-- SVG Definitions -->
+    <svg width="0" height="0" class="absolute">
+        <defs>
+            <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+        </defs>
+    </svg>
+
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        // --- STATE MANAGEMENT ---
+        let state = {
+            projectName: 'โครงการตัวอย่าง',
+            tasks: [],
+            currentView: 'gantt', // 'gantt' or 'calendar'
+            viewMode: 'presentation', // 'presentation' or 'update'
+            zoomLevel: 1, // 0.5, 1, 1.5, 2
+            dayWidth: 40, // width of a day column in px
+            showBaseline: false,
+            showCriticalPath: false,
+            showGridlines: true,
+            workOnSundays: false,
+            workOnHolidays: false,
+            ganttStartDate: null,
+            ganttEndDate: null,
+            calendarDate: new Date(),
+            taskColors: ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ec4899', '#6366f1', '#f59e0b', '#14b8a6'],
+        };
+        
+        // --- CONSTANTS & HELPERS ---
+        const THAI_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+        const THAI_DAYS = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+        const THAI_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+        const THAI_HOLIDAYS = { // YYYY-MM-DD
+            '2025-01-01': 'วันขึ้นปีใหม่', '2025-02-12': 'วันมาฆบูชา', '2025-04-07': 'ชดเชยวันจักรี', '2025-04-13': 'วันสงกรานต์',
+            '2025-04-14': 'วันสงกรานต์', '2025-04-15': 'วันสงกรานต์', '2025-04-16': 'ชดเชยวันสงกรานต์', '2025-05-01': 'วันแรงงาน', '2025-05-05': 'ชดเชยวันฉัตรมงคล',
+            '2025-05-12': 'วันวิสาขบูชา', '2025-06-03': 'วันเฉลิมฯ พระราชินี', '2025-07-11': 'วันอาสาฬหบูชา', '2025-07-28': 'วันเฉลิมฯ ร.10',
+            '2025-08-12': 'วันแม่แห่งชาติ', '2025-10-13': 'วันนวมินทรมหาราช', '2025-10-23': 'วันปิยมหาราช', '2025-12-05': 'วันพ่อแห่งชาติ',
+            '2025-12-10': 'วันรัฐธรรมนูญ', '2025-12-31': 'วันสิ้นปี',
+        };
+        const zoomLevels = [0.5, 1, 1.5, 2];
+        const dayWidths = {0.5: 20, 1: 40, 1.5: 60, 2: 80};
+        
+        // --- DOM ELEMENTS ---
+        const mainContent = document.getElementById('main-content');
+        const ganttView = document.getElementById('gantt-view');
+        const calendarView = document.getElementById('calendar-view');
+        const taskPanel = document.getElementById('task-panel');
+        const ganttPanel = document.getElementById('gantt-panel');
+        const panelResizer = document.getElementById('panel-resizer');
+        const projectNameEl = document.getElementById('project-name');
+        const currentDateEl = document.getElementById('current-date');
+        const taskGridHeader = document.getElementById('task-grid-header');
+        const taskGridContainer = document.getElementById('task-grid-container');
+        const taskGridBody = document.getElementById('task-grid-body');
+        const ganttHeader = document.getElementById('gantt-header');
+        const ganttChartContainer = document.getElementById('gantt-chart-container');
+        const ganttGrid = document.getElementById('gantt-grid');
+        const ganttBarsContainer = document.getElementById('gantt-bars-container');
+        const ganttDepsSvg = document.getElementById('gantt-deps-svg');
+        const newTaskInput = document.getElementById('new-task-input');
+
+        // Calendar elements
+        const calendarGridContainer = document.getElementById('calendar-grid-container');
+        const calendarMonthYear = document.getElementById('calendar-month-year');
+        const calendarDaysHeader = document.getElementById('calendar-days-header');
+
+        // Modal elements
+        const editModal = document.getElementById('edit-task-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const editTaskForm = document.getElementById('edit-task-form');
+        const taskIdInput = document.getElementById('task-id-input');
+        const taskNameInput = document.getElementById('task-name-input');
+        const taskParentSelect = document.getElementById('task-parent-select');
+        const taskDurationInput = document.getElementById('task-duration-input');
+        const taskStartInput = document.getElementById('task-start-input');
+        const taskEndInput = document.getElementById('task-end-input');
+        const taskActualStartInput = document.getElementById('task-actual-start-input');
+        const taskActualEndInput = document.getElementById('task-actual-end-input');
+        const taskProgressInput = document.getElementById('task-progress-input');
+        const progressValue = document.getElementById('progress-value');
+        const deleteTaskBtn = document.getElementById('delete-task-btn');
+        const depTaskSelect = document.getElementById('dep-task-select');
+        const depTypeSelect = document.getElementById('dep-type-select');
+        const depLagInput = document.getElementById('dep-lag-input');
+        const schedManualRadio = document.getElementById('sched-manual');
+        const schedAutoRadio = document.getElementById('sched-auto');
+        
+        // Export Modal elements
+        const exportOptionsModal = document.getElementById('export-options-modal');
+        const closeExportModalBtn = document.getElementById('close-export-modal-btn');
+        const btnExportCurrentView = document.getElementById('btn-export-current-view');
+        const btnExportFullProject = document.getElementById('btn-export-full-project');
+
+        // Notification Modal elements
+        const notificationModal = document.getElementById('notification-modal');
+        const notificationTitle = document.getElementById('notification-title');
+        const notificationMessage = document.getElementById('notification-message');
+        const notificationOkBtn = document.getElementById('notification-ok-btn');
+        
+        
+        // --- UTILITY FUNCTIONS ---
+        const parseDate = (dateStr) => {
+            if (!dateStr || typeof dateStr !== 'string') return null;
+            const date = new Date(dateStr + 'T00:00:00');
+            return isNaN(date.getTime()) ? null : date;
+        };
+        const formatDate = (date) => {
+             if (!date || isNaN(new Date(date).getTime())) return '';
+             // Use local date components to avoid timezone issues with toISOString()
+             const d = new Date(date);
+             const year = d.getFullYear();
+             const month = (d.getMonth() + 1).toString().padStart(2, '0');
+             const day = d.getDate().toString().padStart(2, '0');
+             return `${year}-${month}-${day}`;
+        }
+        const formatThaiDate = (date) => {
+            if (!date || isNaN(new Date(date).getTime())) return 'N/A';
+            const d = new Date(date);
+            return `${d.getDate()} ${THAI_MONTHS[d.getMonth()]} ${d.getFullYear() + 543}`;
+        };
+        const addDays = (date, days) => {
+            const result = new Date(date);
+            result.setDate(result.getDate() + days);
+            return result;
+        };
+        const getDaysBetween = (start, end) => {
+            if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
+
+            // To ignore time and timezone differences, we calculate days based on UTC dates.
+            const startDate = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+            const endDate = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+            
+            // The result is in milliseconds, so we convert it to days.
+            return (endDate - startDate) / (1000 * 60 * 60 * 24);
+        };
+        const isWorkingDay = (date) => {
+            const d = new Date(date);
+            const day = d.getDay(); // Sunday = 0, Saturday = 6
+            const dateStr = formatDate(d);
+
+            if (day === 0 && !state.workOnSundays) {
+                return false;
+            }
+
+            if (THAI_HOLIDAYS[dateStr] && !state.workOnHolidays) {
+                return false;
+            }
+            
+            return true;
+        };
+        const addWorkingDays = (startDate, days) => {
+            if (!startDate) return null;
+            let currentDate = new Date(startDate);
+            let added = 0;
+            let dayIncrement = days >= 0 ? 1 : -1;
+            let daysToProcess = Math.abs(days);
+
+            // If starting on a non-working day and moving forward, find the next working day.
+            if (days >= 0) {
+                while (!isWorkingDay(currentDate)) {
+                    currentDate = addDays(currentDate, 1);
+                }
+            }
+
+            while (added < daysToProcess) {
+                currentDate = addDays(currentDate, dayIncrement);
+                if (isWorkingDay(currentDate)) {
+                    added++;
+                }
+            }
+            return currentDate;
+        };
+
+        const getWorkingDaysDuration = (start, end) => {
+             const startDate = parseDate(formatDate(start));
+             const endDate = parseDate(formatDate(end));
+             if (!startDate || !endDate || startDate > endDate) return 0;
+             let count = 0;
+             const current = new Date(startDate);
+             while (current <= endDate) {
+                 if (isWorkingDay(current)) {
+                     count++;
+                 }
+                 current.setDate(current.getDate() + 1);
+             }
+             return count;
+        };
+        const lightenHexColor = (hex, percent) => {
+            hex = hex.replace(/^#/, '');
+            const r = parseInt(hex.substring(0, 2), 16);
+            const g = parseInt(hex.substring(2, 4), 16);
+            const b = parseInt(hex.substring(4, 6), 16);
+            const newR = Math.min(255, Math.floor(r + (255 - r) * (percent / 100)));
+            const newG = Math.min(255, Math.floor(g + (255 - g) * (percent / 100)));
+            const newB = Math.min(255, Math.floor(b + (255 - b) * (percent / 100)));
+            return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
+        };
+        
+        const showNotification = (title, message) => {
+            notificationTitle.textContent = title;
+            notificationMessage.textContent = message;
+            notificationModal.classList.remove('hidden');
+            notificationModal.classList.add('flex');
+        };
+        const hideNotification = () => {
+            notificationModal.classList.add('hidden');
+            notificationModal.classList.remove('flex');
+        };
+        const getNextId = () => state.tasks.length ? Math.max(...state.tasks.map(t => t.id)) + 1 : 1;
+        
+        const getDescendants = (taskId) => {
+            let descendants = [];
+            const children = state.tasks.filter(t => t.parentId === taskId);
+            children.forEach(child => {
+                descendants.push(child.id);
+                descendants = [...descendants, ...getDescendants(child.id)];
+            });
+            return descendants;
+        };
+
+        const assignTaskColors = () => {
+            let mainTaskCounter = 0;
+            const tasksById = new Map(state.tasks.map(t => [t.id, t]));
+
+            // Clear existing colors
+            state.tasks.forEach(t => delete t.color);
+
+            // Assign colors to top-level parents
+            state.tasks.forEach(task => {
+                if (task.parentId === null) {
+                    const color = state.taskColors[mainTaskCounter % state.taskColors.length];
+                    task.color = color;
+                    mainTaskCounter++;
+                }
+            });
+
+            // Propagate colors to children
+            state.tasks.forEach(task => {
+                if (task.parentId !== null && !task.color) {
+                    let p = tasksById.get(task.parentId);
+                    while(p) {
+                        if(p.color) {
+                            task.color = p.color;
+                            break;
+                        }
+                        if (p.parentId === null) break;
+                        p = tasksById.get(p.parentId);
+                    }
+                }
+            });
+        };
+
+        // --- DATA PERSISTENCE ---
+        const saveData = () => {
+            const dataToSave = {
+                projectName: state.projectName,
+                tasks: state.tasks.map(t => ({...t, start: formatDate(t.start), end: formatDate(t.end), actualStart: formatDate(t.actualStart), actualEnd: formatDate(t.actualEnd), baselineStart: formatDate(t.baselineStart), baselineEnd: formatDate(t.baselineEnd), }))
+            };
+            localStorage.setItem('projectData', JSON.stringify(dataToSave));
+        };
+        
+        const loadData = () => {
+            const data = localStorage.getItem('projectData');
+            if (data) {
+                const parsedData = JSON.parse(data);
+                state.projectName = parsedData.projectName || 'โครงการตัวอย่าง';
+                state.tasks = parsedData.tasks.map(t => {
+                    const start = parseDate(t.start);
+                    const end = parseDate(t.end);
+                    return {
+                        ...t, start, end,
+                        duration: t.duration || getWorkingDaysDuration(start, end),
+                        actualStart: parseDate(t.actualStart), actualEnd: parseDate(t.actualEnd),
+                        baselineStart: parseDate(t.baselineStart), baselineEnd: parseDate(t.baselineEnd),
+                        schedulingMode: t.schedulingMode || 'manual',
+                    };
+                }) || [];
+                projectNameEl.textContent = state.projectName;
+            } else {
+                state.tasks = getSampleTasks();
+            }
+            updateAllParentTaskDates();
+        };
+
+        const getSampleTasks = () => {
+             const today = new Date(); today.setHours(0,0,0,0);
+             return [
+                {id: 1, name: 'Phase 1: Planning', start: null, end: null, duration: 0, progress: 60, parentId: null, isCollapsed: false, dependencies: ''},
+                {id: 2, name: 'Market Research', start: new Date(today), end: addWorkingDays(today, 4), duration: 5, progress: 100, parentId: 1, dependencies: '', schedulingMode: 'manual'},
+                {id: 3, name: 'Define Requirements', start: null, end: null, duration: 4, progress: 75, parentId: 1, dependencies: '2FS+0', schedulingMode: 'auto'},
+                {id: 4, name: 'Create Project Plan', start: null, end: null, duration: 2, progress: 20, parentId: 1, dependencies: '3FS+0', schedulingMode: 'auto'},
+                {id: 5, name: 'Project Kick-off', start: null, end: null, duration: 1, progress: 0, parentId: 1, dependencies: '4FS+0', schedulingMode: 'auto'},
+                {id: 6, name: 'Phase 2: Design', start: null, end: null, duration: 0, progress: 10, parentId: null, isCollapsed: false, dependencies: '5FS+0'},
+                {id: 7, name: 'UI/UX Wireframes', start: null, end: null, duration: 5, progress: 25, parentId: 6, dependencies: '5FS+1', schedulingMode: 'auto'},
+                {id: 8, name: 'Visual Design', start: null, end: null, duration: 5, progress: 0, parentId: 6, dependencies: '7FS+0', schedulingMode: 'auto'},
+             ].map(t => ({...t, actualStart: null, actualEnd: null, baselineStart: null, baselineEnd: null}));
+        };
+
+        // --- PROJECT FILE OPERATIONS ---
+        const saveProjectToFile = () => {
+            try {
+                const dataToSave = {
+                    projectName: state.projectName,
+                    tasks: state.tasks.map(t => ({
+                        ...t,
+                        start: formatDate(t.start),
+                        end: formatDate(t.end),
+                        actualStart: formatDate(t.actualStart),
+                        actualEnd: formatDate(t.actualEnd),
+                        baselineStart: formatDate(t.baselineStart),
+                        baselineEnd: formatDate(t.baselineEnd),
+                        successors: undefined, predecessors: undefined, isCritical: undefined
+                    }))
+                };
+                const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${state.projectName.replace(/[^a-z0-9]/gi, '_')}.gantt.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showNotification('สำเร็จ', 'โครงการถูกบันทึกเป็นไฟล์ JSON เรียบร้อยแล้ว');
+            } catch (error) {
+                console.error('Failed to save project:', error);
+                showNotification('ข้อผิดพลาด', 'ไม่สามารถบันทึกโครงการได้');
+            }
+        };
+
+        const triggerLoadProject = () => {
+            document.getElementById('load-project-input').click();
+        };
+
+        const loadProjectFromFile = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const parsedData = JSON.parse(e.target.result);
+                    if (!parsedData.tasks || !parsedData.projectName) throw new Error('Invalid project file format.');
+                    
+                    state.projectName = parsedData.projectName;
+                    state.tasks = parsedData.tasks.map(t => {
+                        const start = parseDate(t.start);
+                        const end = parseDate(t.end);
+                        return {
+                            ...t, start, end,
+                            duration: t.duration || getWorkingDaysDuration(start, end),
+                            actualStart: parseDate(t.actualStart), actualEnd: parseDate(t.actualEnd),
+                            baselineStart: parseDate(t.baselineStart), baselineEnd: parseDate(t.baselineEnd),
+                            schedulingMode: t.schedulingMode || 'manual',
+                        };
+                    });
+                    
+                    projectNameEl.textContent = state.projectName;
+                    reevaluateAllAutoTasks();
+                    updateAllParentTaskDates();
+                    render();
+                    showNotification('สำเร็จ', 'โหลดโครงการเรียบร้อยแล้ว');
+                } catch (error) {
+                    console.error('Failed to load project:', error);
+                    showNotification('ข้อผิดพลาด', `ไม่สามารถโหลดไฟล์โครงการได้: ${error.message}`);
+                } finally {
+                    event.target.value = null; // Reset input
+                }
+            };
+            reader.readAsText(file);
+        };
+
+        const exportProjectToCSV = () => {
+            try {
+                if (state.tasks.length === 0) {
+                    showNotification('ข้อมูลว่าง', 'ไม่มี Task ที่จะส่งออก');
+                    return;
+                }
+                const tasksById = new Map(state.tasks.map(t => [t.id, t]));
+                const getTaskName = (id) => tasksById.has(id) ? `"${tasksById.get(id).name.replace(/"/g, '""')}"` : '';
+                const headers = ['ID', 'Task Name', 'Duration (days)', 'Planned Start', 'Planned End', 'Actual Start', 'Actual End', 'Progress (%)', 'Parent Task ID', 'Parent Task Name', 'Dependencies'];
+                const rows = state.tasks.map(task => [
+                    task.id, `"${task.name.replace(/"/g, '""')}"`, task.duration || 0,
+                    formatDate(task.start), formatDate(task.end), formatDate(task.actualStart), formatDate(task.actualEnd),
+                    task.progress || 0, task.parentId || '', task.parentId ? getTaskName(task.parentId) : '', task.dependencies || ''
+                ].join(','));
+                const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
+                const link = document.createElement('a');
+                link.setAttribute('href', encodeURI(csvContent));
+                link.setAttribute('download', `${state.projectName.replace(/[^a-z0-9]/gi, '_')}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (error) {
+                console.error('Failed to export CSV:', error);
+                showNotification('ข้อผิดพลาด', 'ไม่สามารถส่งออกเป็น CSV ได้');
+            }
+        };
+
+
+        // --- CORE LOGIC ---
+        const updateParentDates = (childId) => {
+            const tasksById = new Map(state.tasks.map(t => [t.id, t]));
+            const childTask = tasksById.get(childId);
+            if (!childTask || childTask.parentId === null) return;
+            
+            const parentTask = tasksById.get(childTask.parentId);
+            if (!parentTask) return;
+
+            const siblings = state.tasks.filter(t => t.parentId === parentTask.id);
+            if (siblings.length > 0) {
+                 const allDates = siblings.flatMap(t => [t.start, t.end]).filter(d => d && !isNaN(d.getTime()));
+                 if(allDates.length > 0) {
+                    parentTask.start = new Date(Math.min.apply(null, allDates));
+                    parentTask.end = new Date(Math.max.apply(null, allDates));
+                    parentTask.duration = getWorkingDaysDuration(parentTask.start, parentTask.end);
+                    updateParentDates(parentTask.id); // Recursively update grandparent
+                 }
+            }
+        };
+
+        const updateAllParentTaskDates = () => {
+            const parentIds = new Set(state.tasks.filter(t => t.parentId !== null).map(t => t.parentId));
+            parentIds.forEach(id => {
+                const firstChild = state.tasks.find(t => t.parentId === id);
+                if (firstChild) {
+                    updateParentDates(firstChild.id); // Update each parent branch
+                }
+            });
+        };
+        
+        const calculateGanttDateRange = () => {
+            const allDates = state.tasks.flatMap(t => [t.start, t.end, t.baselineStart, t.baselineEnd]).filter(d => d && !isNaN(d.getTime()));
+            if (allDates.length === 0) {
+                const today = new Date();
+                state.ganttStartDate = addDays(today, -7);
+                state.ganttEndDate = addDays(today, 30);
+                return;
+            }
+            const minDate = new Date(Math.min.apply(null, allDates));
+            const maxDate = new Date(Math.max.apply(null, allDates));
+            // Removed padding to show only the active project range
+            state.ganttStartDate = minDate;
+            state.ganttEndDate = maxDate;
+        };
+        
+        const propagateDateChanges = (updatedTaskId) => {
+            const tasksById = new Map(state.tasks.map(t => [t.id, t]));
+            const queue = [updatedTaskId];
+            const visited = new Set(queue);
+
+            while(queue.length > 0){
+                const currentId = queue.shift();
+                const successors = state.tasks.filter(t => t.dependencies && t.dependencies.split(',').some(dep => dep.trim().match(new RegExp(`^${currentId}(FS|SS|FF|SF)`))));
+                
+                successors.forEach(task => {
+                    if (task.schedulingMode === 'auto') {
+                        const newDates = calculateDatesFromDependencies(task);
+                        if (newDates) {
+                            task.start = newDates.start;
+                            task.end = newDates.end;
+                            task.duration = getWorkingDaysDuration(newDates.start, newDates.end);
+                        }
+                    }
+                    if(!visited.has(task.id)){
+                        queue.push(task.id);
+                        visited.add(task.id);
+                    }
+                });
+            }
+        };
+
+        const calculateDatesFromDependencies = (task) => {
+            if (!task.dependencies) return null;
+            const tasksById = new Map(state.tasks.map(t => [t.id, t]));
+            let potentialStartDates = [];
+
+            for (const depString of task.dependencies.split(',')) {
+                const match = depString.trim().match(/(\d+)(FS|SS|FF|SF)\+?(-?\d+)/);
+                if (!match) continue;
+                
+                const [, predId, type, lagStr] = match;
+                const lag = parseInt(lagStr) || 0;
+                const predTask = tasksById.get(parseInt(predId));
+                if (!predTask || !predTask.start || !predTask.end) continue;
+                
+                let potentialStartDate;
+                const duration = task.duration > 0 ? task.duration : 1;
+
+                if (type === 'FS') {
+                    potentialStartDate = addWorkingDays(predTask.end, lag + 1);
+                } else if (type === 'SS') {
+                    potentialStartDate = addWorkingDays(predTask.start, lag);
+                } else if (type === 'FF') {
+                    const potentialEndDate = addWorkingDays(predTask.end, lag);
+                    potentialStartDate = addWorkingDays(potentialEndDate, -(duration - 1));
+                } else if (type === 'SF') { // Start-to-Finish
+                    const potentialEndDate = addWorkingDays(predTask.start, lag);
+                    potentialStartDate = addWorkingDays(potentialEndDate, -(duration - 1));
+                }
+                
+                if (potentialStartDate) {
+                    potentialStartDates.push(potentialStartDate);
+                }
+            }
+
+            if (potentialStartDates.length > 0) {
+                const constrainingDate = new Date(Math.max.apply(null, potentialStartDates));
+                const duration = task.duration > 0 ? task.duration : 1;
+                const newEndDate = addWorkingDays(constrainingDate, duration - 1);
+                return { start: constrainingDate, end: newEndDate };
+            }
+            return null;
+        };
+
+        const calculateCriticalPath = () => {
+            state.tasks.forEach(t => t.isCritical = false);
+            if (state.tasks.length === 0) return;
+
+            const tasksById = new Map(state.tasks.map(t => [t.id, t]));
+            tasksById.forEach(task => {
+                task.successors = [];
+            });
+            const startNodes = [];
+            tasksById.forEach(task => {
+                if (task.dependencies && task.dependencies.length > 0) {
+                    task.dependencies.split(',').forEach(depString => {
+                        const match = depString.trim().match(/(\d+)/);
+                        if (match) {
+                            const predTask = tasksById.get(parseInt(match[1]));
+                            if (predTask) predTask.successors.push(task);
+                        }
+                    });
+                } else {
+                    startNodes.push(task);
+                }
+            });
+
+            const memo = new Map();
+            const findLongestPath = (task) => {
+                if (memo.has(task.id)) return memo.get(task.id);
+                if (task.successors.length === 0) return { duration: task.duration || 1, path: [task.id] };
+                
+                let maxDuration = 0;
+                let longestPath = [];
+                task.successors.forEach(successor => {
+                    const result = findLongestPath(successor);
+                    const pathDuration = (task.duration || 1) + result.duration;
+                    if (pathDuration > maxDuration) {
+                        maxDuration = pathDuration;
+                        longestPath = [task.id, ...result.path];
+                    }
+                });
+
+                const result = { duration: maxDuration, path: longestPath };
+                memo.set(task.id, result);
+                return result;
+            };
+
+            let overallMaxDuration = 0;
+            let criticalPathIds = [];
+            startNodes.forEach(task => {
+                const result = findLongestPath(task);
+                if (result.duration > overallMaxDuration) {
+                    overallMaxDuration = result.duration;
+                    criticalPathIds = result.path;
+                }
+            });
+            
+            const criticalPathIdSet = new Set(criticalPathIds);
+            tasksById.forEach(task => {
+                if (criticalPathIdSet.has(task.id)) {
+                    task.isCritical = true;
+                }
+            });
+        };
+        
+        const reevaluateAllAutoTasks = () => {
+            state.tasks.filter(t => t.schedulingMode === 'auto').forEach(task => {
+                const newDates = calculateDatesFromDependencies(task);
+                if(newDates) {
+                    task.start = newDates.start;
+                    task.end = newDates.end;
+                    task.duration = getWorkingDaysDuration(newDates.start, newDates.end);
+                }
+            });
+        };
+
+        // --- RENDERING ---
+        const render = () => {
+            assignTaskColors();
+            renderHeader();
+            if (state.currentView === 'gantt') {
+                ganttView.classList.remove('hidden');
+                calendarView.classList.add('hidden');
+                renderGanttView();
+            } else {
+                ganttView.classList.add('hidden');
+                calendarView.classList.remove('hidden');
+                renderCalendarView();
+            }
+            saveData();
+        };
+        
+        const renderGanttView = () => {
+            renderTaskList();
+            renderGanttChart();
+        }
+
+        const renderHeader = () => {
+            currentDateEl.textContent = formatThaiDate(new Date());
+            document.body.dataset.mode = state.viewMode;
+            editModal.dataset.mode = state.viewMode;
+            
+            // View switcher visual update
+            const viewSwitchBg = document.getElementById('view-switch-bg');
+            const btnGantt = document.getElementById('btn-gantt-view');
+            const btnCalendar = document.getElementById('btn-calendar-view');
+            if (state.currentView === 'gantt') {
+                viewSwitchBg.style.transform = 'translateX(0)';
+                btnGantt.classList.add('text-gray-900'); btnGantt.classList.remove('text-gray-500');
+                btnCalendar.classList.add('text-gray-500'); btnCalendar.classList.remove('text-gray-900');
+                document.getElementById('gantt-controls').style.display = 'flex';
+            } else {
+                viewSwitchBg.style.transform = `translateX(${btnGantt.offsetWidth}px)`;
+                btnCalendar.classList.add('text-gray-900'); btnCalendar.classList.remove('text-gray-500');
+                btnGantt.classList.add('text-gray-500'); btnGantt.classList.remove('text-gray-900');
+                document.getElementById('gantt-controls').style.display = 'none';
+            }
+
+            // Mode switch
+            const toggleDot = document.getElementById('mode-toggle-dot');
+            const toggleBtn = document.getElementById('mode-toggle-btn');
+            const modeLabel = document.getElementById('mode-label');
+            if (state.viewMode === 'update') {
+                toggleBtn.classList.add('bg-blue-600');
+                toggleBtn.classList.remove('bg-gray-200');
+                toggleDot.style.transform = 'translateX(20px)';
+                modeLabel.textContent = 'โหมดอัปเดต';
+            } else {
+                toggleBtn.classList.remove('bg-blue-600');
+                toggleBtn.classList.add('bg-gray-200');
+                toggleDot.style.transform = 'translateX(4px)';
+                modeLabel.textContent = 'โหมดนำเสนอ';
+            }
+
+            document.getElementById('btn-show-baseline').classList.toggle('active', state.showBaseline); document.getElementById('btn-critical-path').classList.toggle('active', state.showCriticalPath); document.getElementById('btn-gridlines').classList.toggle('active', state.showGridlines);
+            document.getElementById('btn-toggle-sundays').classList.toggle('active', state.workOnSundays);
+            document.getElementById('btn-toggle-holidays').classList.toggle('active', state.workOnHolidays);
+        };
+        
+        const renderTaskList = () => {
+            const taskHeaderHtml = `
+                <div class="col-span-5 p-2 border-r flex items-center">รายละเอียดงาน</div> <div class="col-span-1 p-2 border-r flex items-center justify-center">ระยะเวลา</div>
+                <div class="col-span-2 p-2 border-r flex items-center justify-center">วันเริ่มแผน</div> ${state.viewMode === 'update' ? '<div class="col-span-2 p-2 border-r flex items-center justify-center">วันเริ่มจริง</div>' : ''}
+                <div class="col-span-2 p-2 ${state.viewMode === 'update' ? 'border-r' : ''} flex items-center justify-center">วันเสร็จแผน</div> ${state.viewMode === 'update' ? '<div class="col-span-2 p-2 flex items-center justify-center">วันเสร็จจริง</div>' : ''}`;
+            taskGridHeader.innerHTML = taskHeaderHtml;
+            taskGridHeader.className = `grid ${state.viewMode === 'update' ? 'grid-cols-14' : 'grid-cols-10'} border-b-2 border-[var(--border-color)] text-lg font-semibold text-[var(--text-primary)] flex-shrink-0 bg-white z-10`;
+
+            const renderTaskRow = (task, level, isParentCollapsed) => {
+                if (isParentCollapsed) return '';
+                const isParent = state.tasks.some(t => t.parentId === task.id);
+                const children = state.tasks.filter(t => t.parentId === task.id);
+                let rowHtml = '';
+                const duration = task.duration || 0;
+                const isMilestone = duration <= 1 && task.start && task.end && task.start.getTime() === task.end.getTime();
+                const gridCols = state.viewMode === 'update' ? 'grid-cols-14' : 'grid-cols-10';
+                let taskNameClass = level === 0 ? 'font-bold text-base' : 'font-medium';
+                const rowStyle = task.parentId === null && task.color ? `background-color: ${lightenHexColor(task.color, 90)};` : '';
+
+                rowHtml += `<div id="task-row-${task.id}" data-task-id="${task.id}" class="task-row grid ${gridCols} text-sm items-center border-b hover:bg-blue-50/50 cursor-pointer ${task.isCollapsed ? 'collapsed' : ''}" style="--level: ${level}; height: 36px; ${rowStyle}">
+                        <div class="col-span-5 p-2 border-r flex items-center group relative" style="padding-left: ${level * 20 + 10}px;">
+                            ${isParent ? `<button class="collapse-btn mr-2 p-1 rounded-full hover:bg-gray-200"><svg class="collapse-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-9"/></svg></button>` : `<span class="w-7 mr-2"></span>`}
+                            <span class="${taskNameClass} flex-grow truncate">${task.name}</span>
+                             <button class="add-subtask-btn absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-blue-500 text-white opacity-0 group-hover:opacity-100 transition-opacity" title="เพิ่ม Task ย่อย">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            </button>
+                        </div>
+                        <div class="col-span-1 p-2 border-r text-center text-gray-600">${isMilestone ? 'Milestone' : `${duration} วัน`}</div>
+                        <div class="col-span-2 p-2 border-r text-center">${formatThaiDate(task.start)}</div> ${state.viewMode === 'update' ? `<div class="col-span-2 p-2 border-r text-center text-gray-600">${formatThaiDate(task.actualStart)}</div>` : ''}
+                        <div class="col-span-2 p-2 border-r text-center">${formatThaiDate(task.end)}</div> ${state.viewMode === 'update' ? `<div class="col-span-2 p-2 text-center text-gray-600">${formatThaiDate(task.actualEnd)}</div>` : ''}</div>`;
+                children.forEach(child => rowHtml += renderTaskRow(child, level + 1, task.isCollapsed));
+                return rowHtml;
+            };
+            taskGridBody.innerHTML = state.tasks.filter(t => t.parentId === null).map(task => renderTaskRow(task, 0, false)).join('');
+        };
+
+        const renderGanttChart = () => {
+            calculateGanttDateRange();
+            state.dayWidth = dayWidths[state.zoomLevel];
+            if (!state.ganttStartDate || !state.ganttEndDate) return;
+
+            // --- 1. Get visible tasks first ---
+            let visibleTasks = [];
+            const processVisibleTasks = (task, isParentCollapsed) => {
+                if (isParentCollapsed) return;
+                visibleTasks.push(task);
+                state.tasks.filter(t => t.parentId === task.id).forEach(child => processVisibleTasks(child, task.isCollapsed));
+            };
+            state.tasks.filter(t => t.parentId === null).forEach(t => processVisibleTasks(t, false));
+            const totalHeight = visibleTasks.length * 36;
+
+
+            // --- 2. Render Header and Grid ---
+            let subHeaderHtml = '<div class="flex">';
+            let monthHeaderHtml = '<div class="flex border-b">';
+            let verticalGridHtml = '<div class="flex absolute top-0 left-0 h-full z-0">';
+            const totalDays = getDaysBetween(state.ganttStartDate, state.ganttEndDate);
+            const containerWidth = (totalDays + 1) * state.dayWidth;
+
+            ganttGrid.style.width = `${containerWidth}px`;
+            ganttBarsContainer.style.width = `${containerWidth}px`;
+            ganttGrid.style.height = `${totalHeight}px`;
+
+            const monthMap = new Map();
+
+            for (let i = 0; i <= totalDays; i++) {
+                const date = addDays(state.ganttStartDate, i);
+                const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+                if (!monthMap.has(monthKey)) {
+                    monthMap.set(monthKey, { count: 0, name: `${THAI_MONTHS[date.getMonth()]} ${date.getFullYear() + 543}` });
+                }
+                monthMap.get(monthKey).count++;
+                
+                const isNonWorking = !isWorkingDay(date);
+                const holidayName = THAI_HOLIDAYS[formatDate(date)];
+
+                subHeaderHtml += `<div class="flex-shrink-0 flex items-center justify-center text-xs border-r ${isNonWorking ? 'bg-slate-50' : 'bg-white'}" style="width: ${state.dayWidth}px; height: 30px;" title="${holidayName || ''}">${date.getDate()}</div>`;
+                verticalGridHtml += `
+                    <div class="h-full border-r ${isNonWorking ? 'bg-slate-100' : ''} relative" style="width: ${state.dayWidth}px; border-color: var(--border-color);">
+                         ${holidayName ? `
+                            <div class="absolute inset-0 flex items-center justify-center overflow-hidden">
+                                <span class="holiday-text-vertical text-red-500 font-bold text-center whitespace-nowrap text-xl">
+                                    ${holidayName}
+                                </span>
+                            </div>
+                        ` : ''}
+                    </div>`;
+            }
+            
+            for (const [key, value] of monthMap) {
+                monthHeaderHtml += `<div class="flex-shrink-0 flex items-center justify-center text-sm font-semibold border-r-2 border-gray-400 bg-gray-100" style="width: ${value.count * state.dayWidth}px; height: 30px;">${value.name}</div>`;
+            }
+
+            subHeaderHtml += '</div>';
+            monthHeaderHtml += '</div>';
+            verticalGridHtml += '</div>';
+
+            // --- Add horizontal grid lines ---
+            let horizontalGridHtml = '<div class="absolute top-0 left-0 w-full z-5 pointer-events-none">';
+            visibleTasks.forEach((task, index) => {
+                const rowStyle = task.parentId === null && task.color ? `background-color: ${lightenHexColor(task.color, 90)};` : '';
+                horizontalGridHtml += `<div class="w-full border-b" style="height: 36px; border-color: var(--border-color); ${rowStyle}"></div>`;
+            });
+            horizontalGridHtml += '</div>';
+
+            ganttHeader.innerHTML = monthHeaderHtml + subHeaderHtml;
+            ganttGrid.innerHTML = horizontalGridHtml + verticalGridHtml;
+            
+            // --- 3. Render Bars ---
+            let barsHtml = '';
+            
+            visibleTasks.forEach((task, index) => {
+                if (!task.start || !task.end) return;
+                let color = task.color || '#a5b4fc';
+                const isParent = state.tasks.some(t => t.parentId === task.id);
+
+                if (state.showCriticalPath && task.isCritical) color = 'var(--critical-color)';
+                const left = getDaysBetween(state.ganttStartDate, task.start) * state.dayWidth;
+                const durationDays = getDaysBetween(task.start, task.end);
+                const width = (durationDays + 1) * state.dayWidth;
+                const top = index * 36;
+                const isMilestone = task.duration <= 1 && task.start.getTime() === task.end.getTime();
+
+                if (isMilestone) {
+                    barsHtml += `<div class="task-bar milestone absolute" data-task-id="${task.id}" style="left: ${left + state.dayWidth/2 - 12}px; top: ${top + 6}px;"><div class="w-6 h-6 transform rotate-45" style="background-color: ${color};"></div></div>`;
+                } else if (isParent) {
+                    const barTop = top + 10;
+                    barsHtml += `
+                    <div class="task-bar group absolute" data-task-id="${task.id}" style="left: ${left}px; top: ${barTop}px; width: ${width}px; height: 21px;">
+                        <!-- Main Bar -->
+                        <div class="h-4 w-full rounded-sm" style="background-color: ${color};"></div>
+                        
+                        <!-- Left Triangle -->
+                        <div class="absolute left-0 top-4" style="color: ${color};">
+                            <svg width="10" height="7" viewBox="0 0 10 7" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M5 7L0 0H10L5 7Z"/></svg>
+                        </div>
+
+                        <!-- Right Triangle -->
+                        <div class="absolute right-0 top-4" style="color: ${color};">
+                            <svg width="10" height="7" viewBox="0 0 10 7" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M5 7L0 0H10L5 7Z"/></svg>
+                        </div>
+
+                        <span class="absolute left-2 right-2 text-white text-xs font-medium truncate" style="top: -2px;">${task.name}</span>
+                    </div>`;
+                } else {
+                    const progress = task.progress || 0;
+                    const lightColor = lightenHexColor(color, 75);
+                    const barTop = top + 4;
+                    const backgroundStyle = state.viewMode === 'update' ? `background: linear-gradient(to right, ${color} ${progress}%, ${lightColor} ${progress}%);` : `background-color: ${color};`;
+                    const hoverContent = state.viewMode === 'update' ? `<span class="absolute left-2 right-2 text-white text-xs font-medium truncate hidden group-hover:block">${progress}% Complete</span>` : '';
+                    const mainContent = state.viewMode === 'update' ? `<span class="absolute left-2 right-2 text-white text-xs font-medium truncate group-hover:hidden">${task.name}</span>` : `<span class="absolute left-2 right-2 text-white text-xs font-medium truncate">${task.name}</span>`;
+                    barsHtml += `<div class="task-bar group absolute h-7 rounded-md flex items-center" data-task-id="${task.id}" style="left: ${left}px; top: ${barTop}px; width: ${width}px; ${backgroundStyle}">
+                            ${mainContent}
+                            ${hoverContent}
+                            ${state.viewMode === 'update' ? `<div class="task-resizer-left absolute left-0 top-0 h-full w-2 cursor-ew-resize"></div> <div class="task-resizer-right absolute right-0 top-0 h-full w-2 cursor-ew-resize"></div>` : ''}
+                        </div>`;
+                }
+
+                if (state.showBaseline && task.baselineStart && task.baselineEnd && !isMilestone) {
+                    const bLeft = getDaysBetween(state.ganttStartDate, task.baselineStart) * state.dayWidth;
+                    const bWidth = (getDaysBetween(task.baselineStart, task.baselineEnd) + 1) * state.dayWidth;
+                    barsHtml += `<div class="absolute h-2 bg-gray-400 rounded-full" style="left: ${bLeft}px; top: ${top + 32}px; width: ${bWidth}px; opacity: 0.7;"></div>`;
+                }
+            });
+            ganttBarsContainer.innerHTML = barsHtml;
+            ganttBarsContainer.style.height = `${totalHeight}px`;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (today >= state.ganttStartDate && today <= state.ganttEndDate) {
+                const todayLeft = getDaysBetween(state.ganttStartDate, today) * state.dayWidth + state.dayWidth / 2;
+                ganttBarsContainer.innerHTML += `<div class="absolute top-0 h-full w-0.5 bg-red-500 opacity-75 pointer-events-none" style="left: ${todayLeft}px;"><div class="absolute -top-1 -left-1.5 w-4 h-4 bg-red-500 rounded-full"></div></div>`;
+            }
+
+            // --- 4. Render Dependencies and Sync Header ---
+            renderDependencies(visibleTasks);
+            requestAnimationFrame(() => {
+                const ganttHeaderHeight = ganttHeader.offsetHeight;
+                if (ganttHeaderHeight > 0) taskGridHeader.style.height = `${ganttHeaderHeight}px`;
+            });
+        };
+        
+        const renderDependencies = (visibleTasks) => {
+            let svgHtml = '';
+            const taskPositions = new Map();
+            visibleTasks.forEach((task) => {
+                const barEl = ganttBarsContainer.querySelector(`[data-task-id='${task.id}']`);
+                if(barEl) {
+                    const isParentBar = state.tasks.some(t => t.parentId === task.id);
+                    taskPositions.set(task.id, {
+                        x: parseFloat(barEl.style.left),
+                        y: parseFloat(barEl.style.top),
+                        width: barEl.classList.contains('milestone') ? 0 : parseFloat(barEl.style.width),
+                        height: isParentBar ? 16 : 28,
+                    });
+                }
+            });
+
+            visibleTasks.forEach(task => {
+                if(!task.dependencies) return;
+                const toPos = taskPositions.get(task.id);
+                if(!toPos) return;
+
+                const deps = task.dependencies.split(',');
+                deps.forEach(dep => {
+                    const match = dep.trim().match(/(\d+)(FS|SS|FF|SF)\+?(-?\d+)/);
+                    if (!match) return;
+                    
+                    const fromId = parseInt(match[1]);
+                    const type = match[2] || 'FS';
+                    const fromPos = taskPositions.get(fromId);
+                    if (!fromPos) return;
+                    
+                    let fromX, toX;
+                    const fromY = fromPos.y + fromPos.height / 2;
+                    const toY = toPos.y + toPos.height / 2;
+                    
+                    fromX = type.startsWith('S') ? fromPos.x : fromPos.x + fromPos.width;
+                    toX = type.endsWith('S') ? toPos.x : toPos.x + toPos.width;
+                    
+                    const isCritical = state.showCriticalPath && task.isCritical && state.tasks.find(t=>t.id===fromId)?.isCritical;
+                    const pathClass = isCritical ? "critical-path" : "";
+
+                    svgHtml += `<g class="${pathClass}"><path class="dependency-line" d="M ${fromX} ${fromY} C ${fromX + 20} ${fromY}, ${toX - 20} ${toY}, ${toX} ${toY}" /></g>`;
+                });
+            });
+            ganttDepsSvg.innerHTML = svgHtml;
+        };
+
+        const renderCalendarView = () => {
+            const now = new Date();
+            const todayStr = formatDate(now);
+            const date = state.calendarDate;
+            const year = date.getFullYear();
+            const month = date.getMonth();
+
+            calendarMonthYear.textContent = `${THAI_MONTHS_FULL[month]} ${year + 543}`;
+            calendarDaysHeader.innerHTML = THAI_DAYS.map(day => `<div class="calendar-day-header">${day}</div>`).join('');
+            calendarGridContainer.innerHTML = ''; // Clear previous content
+
+            const firstDayOfMonth = new Date(year, month, 1);
+            const lastDayOfMonth = new Date(year, month + 1, 0);
+            const startDate = addDays(firstDayOfMonth, -firstDayOfMonth.getDay());
+            const endDate = addDays(lastDayOfMonth, 6 - lastDayOfMonth.getDay());
+
+            let currentDate = new Date(startDate);
+            let dayCells = [];
+            while(currentDate <= endDate) {
+                const dayStr = formatDate(currentDate);
+                const isToday = dayStr === todayStr;
+                const isCurrentMonth = currentDate.getMonth() === month;
+                const holiday = THAI_HOLIDAYS[dayStr];
+
+                let cellClasses = 'calendar-day relative p-1 bg-white';
+                if (!isCurrentMonth) cellClasses += ' bg-gray-50 text-gray-400';
+                if (!isWorkingDay(currentDate)) cellClasses += ' bg-slate-50';
+                if (isToday) cellClasses += ' today';
+                
+                dayCells.push(`<div class="${cellClasses}" data-date="${dayStr}">
+                    <span class="calendar-day-number flex items-center justify-center rounded-full text-sm">${currentDate.getDate()}</span>
+                    ${holiday ? `<span class="absolute bottom-1 right-2 text-xs text-red-500 font-semibold truncate">${holiday}</span>` : ''}
+                </div>`);
+
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            calendarGridContainer.innerHTML = dayCells.join('');
+
+            // Render tasks
+            renderCalendarTasks(startDate, endDate);
+        };
+
+        const renderCalendarTasks = (viewStartDate, viewEndDate) => {
+            const taskLayer = document.createElement('div');
+            taskLayer.className = 'absolute inset-px pointer-events-none';
+
+            const tasksInView = state.tasks.filter(t => t.start && t.end && !(t.end < viewStartDate || t.start > viewEndDate));
+
+            const weekCount = Math.ceil(getDaysBetween(viewStartDate, viewEndDate) / 7);
+            const lanesByWeek = Array.from({ length: weekCount }, () => []);
+
+            tasksInView.forEach(task => {
+                if(state.tasks.some(t => t.parentId === task.id)) return; // Don't render parent summary bars
+                
+                let current = new Date(Math.max(task.start, viewStartDate));
+                current.setHours(0,0,0,0);
+                
+                while(current <= task.end && current <= viewEndDate) {
+                    const weekIndex = Math.floor(getDaysBetween(viewStartDate, current) / 7);
+                    const dayOfWeek = current.getDay();
+
+                    let laneIndex = lanesByWeek[weekIndex].findIndex(lane => lane <= current);
+                    if (laneIndex === -1) {
+                        laneIndex = lanesByWeek[weekIndex].length;
+                    }
+                    
+                    const endOfWeek = addDays(current, 6-dayOfWeek);
+                    const taskSegmentEndDate = new Date(Math.min(task.end, endOfWeek, viewEndDate));
+                    
+                    const barWidthDays = getDaysBetween(current, taskSegmentEndDate) + 1;
+
+                    const bar = document.createElement('div');
+                    bar.className = 'calendar-task-bar absolute flex items-center rounded text-white text-xs font-medium px-2 truncate pointer-events-auto';
+                    bar.textContent = task.name;
+                    bar.dataset.taskId = task.id;
+                    bar.style.backgroundColor = task.color || '#a5b4fc';
+                    bar.style.top = `${(weekIndex / weekCount * 100)}%`;
+                    bar.style.marginTop = `${30 + laneIndex * 26}px`; // 30px for day number, 26px per lane
+                    bar.style.left = `${(dayOfWeek / 7 * 100)}%`;
+                    bar.style.width = `${(barWidthDays / 7 * 100)}%`;
+                    taskLayer.appendChild(bar);
+
+                    const nextLaneDate = addDays(taskSegmentEndDate, 1);
+                    lanesByWeek[weekIndex][laneIndex] = nextLaneDate;
+
+                    current = addDays(taskSegmentEndDate, 1);
+                }
+            });
+
+            calendarGridContainer.appendChild(taskLayer);
+        };
+
+        // --- EVENT LISTENERS ---
+        const setupEventListeners = () => {
+            // Dropdown Logic
+            const setupDropdowns = () => {
+                const dropdowns = document.querySelectorAll('.dropdown');
+                dropdowns.forEach(dropdown => {
+                    const toggle = dropdown.querySelector('.dropdown-toggle');
+                    toggle.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        // Close other dropdowns
+                        dropdowns.forEach(d => {
+                            if (d !== dropdown) d.classList.remove('show');
+                        });
+                        dropdown.classList.toggle('show');
+                    });
+                });
+                // Close dropdowns when clicking outside
+                window.addEventListener('click', (e) => {
+                    dropdowns.forEach(dropdown => {
+                        if (!dropdown.contains(e.target)) {
+                            dropdown.classList.remove('show');
+                        }
+                    });
+                });
+            };
+            setupDropdowns();
+
+            let isResizing = false;
+            panelResizer.addEventListener('mousedown', () => isResizing = true);
+            document.addEventListener('mousemove', (e) => { if (!isResizing) return; const leftPanelWidth = e.clientX - taskPanel.getBoundingClientRect().left; if (leftPanelWidth > 200 && leftPanelWidth < mainContent.offsetWidth - 200) { taskPanel.style.width = `${leftPanelWidth}px`; } });
+            document.addEventListener('mouseup', () => isResizing = false);
+            
+            // Sync scrolling
+            let isWheeling = false;
+            const handleWheel = (e) => {
+                if (isWheeling) return;
+                isWheeling = true;
+                e.preventDefault();
+                const { deltaY, currentTarget } = e;
+                const other = currentTarget === taskGridContainer ? ganttChartContainer : taskGridContainer;
+                currentTarget.scrollTop += deltaY;
+                other.scrollTop += deltaY;
+                setTimeout(() => isWheeling = false, 20); 
+            };
+            taskGridContainer.addEventListener('wheel', handleWheel, { passive: false });
+            ganttChartContainer.addEventListener('wheel', handleWheel, { passive: false });
+            
+            let isScrolling = false;
+            const syncScroll = (source, target) => {
+                if (isScrolling) return;
+                isScrolling = true;
+                target.scrollTop = source.scrollTop;
+                requestAnimationFrame(() => isScrolling = false);
+            };
+            taskGridContainer.addEventListener('scroll', () => syncScroll(taskGridContainer, ganttChartContainer));
+            ganttChartContainer.addEventListener('scroll', () => {
+                syncScroll(ganttChartContainer, taskGridContainer);
+                ganttHeader.scrollLeft = ganttChartContainer.scrollLeft;
+            });
+            
+
+            projectNameEl.addEventListener('blur', (e) => { state.projectName = e.target.textContent; saveData(); });
+            projectNameEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
+
+            document.getElementById('btn-gantt-view').addEventListener('click', () => { state.currentView = 'gantt'; render(); });
+            document.getElementById('btn-calendar-view').addEventListener('click', () => { state.currentView = 'calendar'; render(); });
+            document.getElementById('mode-toggle-btn').addEventListener('click', () => {
+                state.viewMode = state.viewMode === 'presentation' ? 'update' : 'presentation';
+                render();
+            });
+
+            document.getElementById('btn-set-baseline').addEventListener('click', () => { state.tasks.forEach(t => { t.baselineStart = t.start; t.baselineEnd = t.end; }); showNotification('Baseline', 'ตั้งค่า Baseline ปัจจุบันเรียบร้อยแล้ว'); render(); });
+            document.getElementById('btn-show-baseline').addEventListener('click', () => { state.showBaseline = !state.showBaseline; render(); });
+            document.getElementById('btn-critical-path').addEventListener('click', () => { state.showCriticalPath = !state.showCriticalPath; if(state.showCriticalPath) calculateCriticalPath(); else state.tasks.forEach(t => t.isCritical = false); render(); });
+            document.getElementById('btn-gridlines').addEventListener('click', () => { state.showGridlines = !state.showGridlines; render(); });
+            
+            document.getElementById('btn-toggle-sundays').addEventListener('click', (e) => {
+                state.workOnSundays = !state.workOnSundays;
+                reevaluateAllAutoTasks();
+                updateAllParentTaskDates();
+                render();
+            });
+            document.getElementById('btn-toggle-holidays').addEventListener('click', (e) => {
+                state.workOnHolidays = !state.workOnHolidays;
+                reevaluateAllAutoTasks();
+                updateAllParentTaskDates();
+                render();
+            });
+
+            document.getElementById('btn-zoom-in').addEventListener('click', () => { const currentIndex = zoomLevels.indexOf(state.zoomLevel); if (currentIndex < zoomLevels.length - 1) { state.zoomLevel = zoomLevels[currentIndex + 1]; renderGanttChart(); } });
+            document.getElementById('btn-zoom-out').addEventListener('click', () => { const currentIndex = zoomLevels.indexOf(state.zoomLevel); if (currentIndex > 0) { state.zoomLevel = zoomLevels[currentIndex - 1]; renderGanttChart(); } });
+            document.getElementById('btn-goto-today').addEventListener('click', () => { const todayLeft = getDaysBetween(state.ganttStartDate, new Date()) * state.dayWidth; ganttChartContainer.scrollLeft = todayLeft - ganttChartContainer.offsetWidth / 2; });
+            
+            // Calendar Navigation
+            document.getElementById('calendar-prev-btn').addEventListener('click', () => {
+                state.calendarDate.setMonth(state.calendarDate.getMonth() - 1);
+                renderCalendarView();
+            });
+            document.getElementById('calendar-next-btn').addEventListener('click', () => {
+                state.calendarDate.setMonth(state.calendarDate.getMonth() + 1);
+                renderCalendarView();
+            });
+             document.getElementById('calendar-today-btn').addEventListener('click', () => {
+                state.calendarDate = new Date();
+                renderCalendarView();
+            });
+            calendarGridContainer.addEventListener('click', (e) => {
+                const taskBar = e.target.closest('.calendar-task-bar');
+                if (taskBar && taskBar.dataset.taskId) {
+                    openEditModal(parseInt(taskBar.dataset.taskId));
+                }
+            });
+
+
+            // New File Operation Listeners
+            document.getElementById('btn-save-project').addEventListener('click', saveProjectToFile);
+            document.getElementById('btn-load-project').addEventListener('click', triggerLoadProject);
+            document.getElementById('load-project-input').addEventListener('change', loadProjectFromFile);
+            document.getElementById('btn-export-csv').addEventListener('click', exportProjectToCSV);
+
+            document.getElementById('btn-add-task').addEventListener('click', () => newTaskInput.focus());
+            document.getElementById('btn-export-image').addEventListener('click', () => {
+                exportOptionsModal.classList.remove('hidden');
+                exportOptionsModal.classList.add('flex');
+            });
+            closeExportModalBtn.addEventListener('click', () => {
+                exportOptionsModal.classList.add('hidden');
+                exportOptionsModal.classList.remove('flex');
+            });
+            btnExportCurrentView.addEventListener('click', () => {
+                exportOptionsModal.classList.add('hidden');
+                exportOptionsModal.classList.remove('flex');
+                exportCurrentView();
+            });
+            btnExportFullProject.addEventListener('click', () => {
+                exportOptionsModal.classList.add('hidden');
+                exportOptionsModal.classList.remove('flex');
+                exportFullProject();
+            });
+
+            taskDurationInput.addEventListener('input', () => syncDatesAndDuration('duration'));
+            taskStartInput.addEventListener('input', () => syncDatesAndDuration('start'));
+            taskEndInput.addEventListener('input', () => syncDatesAndDuration('end'));
+
+            newTaskInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && e.target.value.trim() !== '') {
+                    const today = new Date(); today.setHours(0,0,0,0);
+                    const duration = 1;
+                    const endDate = addWorkingDays(today, duration > 0 ? duration - 1 : 0);
+                    state.tasks.push({ id: getNextId(), name: e.target.value.trim(), start: today, end: endDate, duration: duration, progress: 0, parentId: null, isCollapsed: false, dependencies: '', schedulingMode: 'manual', actualStart: null, actualEnd: null, baselineStart: null, baselineEnd: null });
+                    e.target.value = '';
+                    render();
+                    taskGridContainer.scrollTop = taskGridContainer.scrollHeight;
+                }
+            });
+            
+            taskGridBody.addEventListener('click', (e) => {
+                const taskRow = e.target.closest('.task-row');
+                if (!taskRow) return;
+                const taskId = parseInt(taskRow.dataset.taskId);
+                const task = state.tasks.find(t => t.id === taskId);
+                
+                if (e.target.closest('.add-subtask-btn')) {
+                    e.stopPropagation();
+                    const today = new Date(); today.setHours(0,0,0,0);
+                    const duration = 1;
+                    const endDate = addWorkingDays(today, duration > 0 ? duration - 1 : 0);
+                    const newId = getNextId();
+                    state.tasks.push({ id: newId, name: 'New Sub-task', start: today, end: endDate, duration: duration, progress: 0, parentId: taskId, isCollapsed: false, dependencies: '', schedulingMode: 'manual' });
+                    
+                    if(task.isCollapsed) task.isCollapsed = false;
+                    
+                    reevaluateAllAutoTasks();
+                    updateAllParentTaskDates();
+                    render();
+                    openEditModal(newId);
+
+                } else if (e.target.closest('.collapse-btn')) {
+                    if (task) { task.isCollapsed = !task.isCollapsed; render(); }
+                } else {
+                    openEditModal(taskId);
+                }
+            });
+
+            closeModalBtn.addEventListener('click', () => editModal.classList.add('hidden'));
+            editModal.addEventListener('click', (e) => { if (e.target === editModal) editModal.classList.add('hidden'); });
+
+            editTaskForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const taskId = parseInt(taskIdInput.value);
+                const task = state.tasks.find(t => t.id === taskId);
+                if (task) {
+                    const newMode = document.querySelector('input[name="scheduling-mode"]:checked').value;
+                    const newParentIdStr = taskParentSelect.value;
+                    task.parentId = newParentIdStr === 'null' ? null : parseInt(newParentIdStr);
+                    task.name = taskNameInput.value;
+                    task.schedulingMode = newMode;
+                    task.duration = parseInt(taskDurationInput.value) || 0;
+                    if (task.schedulingMode === 'manual') {
+                        task.start = parseDate(taskStartInput.value);
+                        task.end = parseDate(taskEndInput.value);
+                    }
+                    task.actualStart = parseDate(taskActualStartInput.value);
+                    task.actualEnd = parseDate(taskActualEndInput.value);
+                    task.progress = parseInt(taskProgressInput.value);
+                    const depId = depTaskSelect.value;
+                    const depType = depTypeSelect.value;
+                    const depLag = depLagInput.value || 0;
+                    task.dependencies = depId ? `${depId}${depType}+${depLag}` : ''; 
+                    
+                    if (task.schedulingMode === 'auto') {
+                        const newDates = calculateDatesFromDependencies(task);
+                        if(newDates) {
+                            task.start = newDates.start;
+                            task.end = newDates.end;
+                            task.duration = getWorkingDaysDuration(newDates.start, newDates.end);
+                        }
+                    }
+                }
+                editModal.classList.add('hidden');
+                propagateDateChanges(taskId);
+                updateAllParentTaskDates();
+                render();
+            });
+            
+            deleteTaskBtn.addEventListener('click', () => {
+                const taskId = parseInt(taskIdInput.value);
+                state.tasks = state.tasks.filter(t => t.id !== taskId && t.parentId !== taskId);
+                state.tasks.forEach(t => {
+                    if (t.dependencies) {
+                        t.dependencies = t.dependencies.split(',').filter(dep => !dep.trim().startsWith(taskId)).join(',');
+                    }
+                });
+                editModal.classList.add('hidden');
+                reevaluateAllAutoTasks();
+                updateAllParentTaskDates();
+                render();
+            });
+
+            notificationOkBtn.addEventListener('click', hideNotification);
+            [depTaskSelect, depTypeSelect, depLagInput].forEach(el => { el.addEventListener('change', handleDependencyChange); });
+            [schedManualRadio, schedAutoRadio].forEach(el => { el.addEventListener('change', handleSchedulingModeChange); });
+            taskProgressInput.addEventListener('input', (e) => progressValue.textContent = e.target.value);
+        };
+        
+        const exportCurrentView = () => {
+            showNotification('กำลังส่งออก', 'กำลังสร้างภาพ PNG กรุณารอสักครู่...');
+            const elementToCapture = state.currentView === 'gantt' ? document.getElementById('gantt-view') : document.getElementById('calendar-view');
+            setTimeout(() => {
+                html2canvas(elementToCapture, { scale: 2 }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `${state.projectName}_${state.currentView}_view.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                    hideNotification();
+                }).catch(err => showNotification('ข้อผิดพลาด', 'ไม่สามารถส่งออกรูปภาพได้'));
+            }, 500);
+        };
+
+        const exportFullProject = async () => {
+            if (state.currentView === 'calendar') {
+                 showNotification('ข้อจำกัด', 'การส่งออกทั้งโครงการใช้ได้กับมุมมอง Gantt เท่านั้น');
+                 return;
+            }
+            showNotification('กำลังเตรียมภาพ', 'กรุณารอสักครู่ ระบบกำลังสร้างภาพรวมทั้งโครงการ...');
+            
+            const mainEl = document.getElementById('gantt-view');
+            
+            try {
+                // Calculate the actual full dimensions of the content
+                const fullWidth = taskPanel.offsetWidth + ganttGrid.offsetWidth;
+                const fullHeight = taskGridHeader.offsetHeight + taskGridBody.scrollHeight + newTaskInput.parentElement.offsetHeight;
+
+                // Temporarily adjust scroll to capture everything from the top-left
+                taskGridContainer.scrollTop = 0;
+                ganttChartContainer.scrollTop = 0;
+                ganttChartContainer.scrollLeft = 0;
+                await new Promise(resolve => setTimeout(resolve, 50)); // Allow scroll to apply
+
+                const canvas = await html2canvas(mainEl, {
+                    scale: 2, // Increase scale for higher resolution
+                    allowTaint: true,
+                    useCORS: true,
+                    width: fullWidth,
+                    height: fullHeight,
+                    windowWidth: fullWidth,
+                    windowHeight: fullHeight,
+                    scrollX: -window.scrollX,
+                    scrollY: -window.scrollY,
+                });
+
+                const link = document.createElement('a');
+                link.download = `${state.projectName}_full_project.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+
+            } catch(err) {
+                console.error("Export failed:", err);
+                showNotification('ข้อผิดพลาด', 'ไม่สามารถส่งออกรูปภาพได้');
+            } finally {
+                hideNotification();
+            }
+        };
+
+        const syncDatesAndDuration = (changedField) => {
+            if (schedManualRadio.checked) {
+                const duration = parseInt(taskDurationInput.value);
+                const start = parseDate(taskStartInput.value);
+                const end = parseDate(taskEndInput.value);
+                if (changedField === 'duration' || changedField === 'start') {
+                    if (start && duration >= 0) {
+                        const newEnd = addWorkingDays(start, duration > 0 ? duration - 1 : 0);
+                        taskEndInput.value = formatDate(newEnd);
+                    }
+                } else if (changedField === 'end') {
+                    if (start && end && end >= start) {
+                        taskDurationInput.value = getWorkingDaysDuration(start, end);
+                    }
+                }
+            }
+        };
+
+        const handleSchedulingModeChange = () => {
+            const isManual = schedManualRadio.checked;
+            const isParent = state.tasks.some(t => t.parentId === parseInt(taskIdInput.value));
+            taskDurationInput.disabled = isParent;
+            taskStartInput.disabled = !isManual || isParent;
+            taskEndInput.disabled = !isManual || isParent;
+            if (isParent) {
+                 schedAutoRadio.disabled = true; schedManualRadio.disabled = true;
+                 schedManualRadio.checked = true;
+            } else {
+                 schedAutoRadio.disabled = false; schedManualRadio.disabled = false;
+            }
+            if (!isManual) { handleDependencyChange(); }
+        };
+
+        const handleDependencyChange = () => {
+            if (schedAutoRadio.checked) {
+                const taskId = parseInt(taskIdInput.value);
+                const duration = parseInt(taskDurationInput.value) || 1;
+                const tempTask = { id: taskId, duration: duration, dependencies: depTaskSelect.value ? `${depTaskSelect.value}${depTypeSelect.value}+${depLagInput.value}` : '' };
+                const newDates = calculateDatesFromDependencies(tempTask);
+                if (newDates) {
+                    taskStartInput.value = formatDate(newDates.start);
+                    taskEndInput.value = formatDate(newDates.end);
+                }
+            }
+        };
+
+        const openEditModal = (taskId) => {
+            const task = state.tasks.find(t => t.id === taskId);
+            if (!task) return;
+            taskIdInput.value = task.id; taskNameInput.value = task.name;
+            taskDurationInput.value = task.duration || 0;
+            taskStartInput.value = formatDate(task.start); taskEndInput.value = formatDate(task.end);
+            taskActualStartInput.value = formatDate(task.actualStart); taskActualEndInput.value = formatDate(task.actualEnd);
+            taskProgressInput.value = task.progress || 0; progressValue.textContent = task.progress || 0;
+            if (task.schedulingMode === 'auto') { schedAutoRadio.checked = true; } else { schedManualRadio.checked = true; }
+            
+            const descendants = getDescendants(taskId);
+            const forbiddenIds = new Set([taskId, ...descendants]);
+            taskParentSelect.innerHTML = '<option value="null">-- ไม่มี (งานหลัก) --</option>' + state.tasks.filter(t => !forbiddenIds.has(t.id)).map(p => `<option value="${p.id}">${p.id}: ${p.name}</option>`).join('');
+            taskParentSelect.value = task.parentId === null ? 'null' : task.parentId;
+
+            depTaskSelect.innerHTML = '<option value="">-- ไม่มี --</option>' + state.tasks.filter(t => t.id !== taskId).map(t => `<option value="${t.id}">${t.id}: ${t.name}</option>`).join('');
+            const match = (task.dependencies || '').match(/(\d+)(FS|SS|FF|SF)\+?(-?\d+)/);
+            if(match) {
+                depTaskSelect.value = match[1];
+                depTypeSelect.value = match[2];
+                depLagInput.value = match[3] || 0;
+            } else {
+                depTaskSelect.value = ''; depTypeSelect.value = 'FS'; depLagInput.value = 0;
+            }
+            handleSchedulingModeChange();
+            editModal.classList.remove('hidden'); editModal.classList.add('flex');
+        };
+
+        // --- INITIALIZATION ---
+        const init = () => {
+            const style = document.createElement('style');
+            style.textContent = `
+                .control-btn { @apply p-2 rounded-lg bg-white text-gray-500 hover:bg-gray-50 transition-colors; } 
+                .control-btn.active, .dropdown-item.active { @apply bg-blue-100 text-blue-600; }
+                .main-btn-primary { @apply flex items-center bg-[var(--primary-color)] text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-[var(--primary-hover)] transition-transform transform hover:scale-105; }
+                .main-btn-secondary { @apply flex items-center bg-white text-gray-700 font-bold py-2 px-4 rounded-lg border border-gray-300 shadow-sm hover:bg-gray-50 transition-transform transform hover:scale-105; }
+                .animate-fade-in-down { animation: fadeInDown 0.3s ease-out forwards; } @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }`;
+            document.head.append(style);
+            loadData();
+            reevaluateAllAutoTasks();
+            updateAllParentTaskDates();
+            setupEventListeners();
+            render();
+        };
+
+        init();
+
+        // Wait for the entire page to load (including styles) before scrolling to today.
+        // This robustly fixes the initial alignment issue.
+        window.addEventListener('load', () => {
+             setTimeout(() => {
+                if(state.currentView === 'gantt'){
+                    document.getElementById('btn-goto-today').click();
+                }
+            }, 100); // A small buffer to ensure rendering is complete.
+        });
+    });
+    </script>
+</body>
+</html>
