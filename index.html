@@ -24,11 +24,21 @@
             --text-primary: #1f2937; /* gray-800 */
             --text-secondary: #6b7280; /* gray-500 */
             --holiday-bg: #f1f5f9; /* slate-100 */
+
+            /* Status Colors */
+            --status-completed: #3b82f6; /* blue-500 */
+            --status-on-track: #22c55e; /* green-500 */
+            --status-at-risk: #f97316; /* orange-500 */
+            --status-delayed: #ef4444; /* red-500 */
         }
         body {
             font-family: 'Sarabun', sans-serif;
             color: var(--text-primary);
             overscroll-behavior: none;
+        }
+        body[data-mode="update"] #main-header {
+            background-color: #f0f9ff; /* blue-50 */
+            border-bottom-color: #bfdbfe; /* blue-200 */
         }
         .gantt-chart-container::-webkit-scrollbar,
         .task-grid-container::-webkit-scrollbar {
@@ -164,12 +174,63 @@
         .calendar-day-header {
             writing-mode: horizontal-tb;
         }
+
+        /* Update Mode Specific Styles */
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .progress-bar-container {
+            background-color: #e5e7eb;
+            border-radius: 9999px;
+            overflow: hidden;
+            height: 18px;
+            position: relative;
+        }
+        .progress-bar-fill {
+            background-color: var(--primary-color);
+            height: 100%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 6px;
+        }
+        .progress-bar-text {
+             position: absolute;
+             left: 8px;
+             top: 50%;
+             transform: translateY(-50%);
+             font-size: 11px;
+             font-weight: 500;
+             color: white;
+             text-shadow: 0 0 2px rgba(0,0,0,0.5);
+        }
+        .task-bar-planned-shadow {
+            position: absolute;
+            background-color: #d1d5db; /* gray-300 */
+            border-radius: 4px;
+            opacity: 0.8;
+            height: 10px;
+            top: 18px;
+        }
+        .inline-edit-input {
+            width: 100%;
+            padding: 2px 4px;
+            border: 2px solid var(--primary-color);
+            border-radius: 4px;
+            outline: none;
+            font-size: inherit;
+            font-family: inherit;
+            background-color: #f0f9ff;
+        }
     </style>
 </head>
 <body class="bg-gray-100 overflow-hidden h-screen flex flex-col">
 
     <!-- Header -->
-    <header id="main-header" class="bg-[var(--header-bg)] border-b border-[var(--border-color)] px-4 py-2 flex items-center justify-between flex-shrink-0 z-30">
+    <header id="main-header" class="bg-[var(--header-bg)] border-b border-[var(--border-color)] px-4 py-2 flex items-center justify-between flex-shrink-0 z-30 transition-colors duration-300">
         <div class="flex items-center gap-4">
             <h1 id="project-name" contenteditable="true" class="text-xl font-bold text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--primary-color)] rounded-md px-2">โครงการตัวอย่าง</h1>
             <span id="current-date" class="text-sm text-[var(--text-secondary)] font-medium"></span>
@@ -371,7 +432,7 @@
                          </div>
                     </div>
 
-                    <div class="update-only grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-2 gap-4">
                          <div>
                              <label for="task-actual-start-input" class="block text-sm font-medium text-gray-700">วันเริ่มจริง</label>
                              <input type="date" id="task-actual-start-input" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
@@ -382,7 +443,7 @@
                          </div>
                     </div>
 
-                     <div class="col-span-2 update-only">
+                     <div class="col-span-2">
                          <label for="task-progress-input" class="block text-sm font-medium text-gray-700">ความคืบหน้า (<span id="progress-value">0</span>%)</label>
                          <input type="range" id="task-progress-input" min="0" max="100" class="mt-1 block w-full">
                      </div>
@@ -566,6 +627,11 @@
             if (!date || isNaN(new Date(date).getTime())) return 'N/A';
             const d = new Date(date);
             return `${d.getDate()} ${THAI_MONTHS[d.getMonth()]} ${d.getFullYear() + 543}`;
+        };
+        const formatThaiDateShort = (date) => {
+            if (!date || isNaN(new Date(date).getTime())) return 'N/A';
+            const d = new Date(date);
+            return `${d.getDate()}/${d.getMonth()+1}`;
         };
         const addDays = (date, days) => {
             const result = new Date(date);
@@ -989,7 +1055,7 @@
         };
         
         const calculateGanttDateRange = () => {
-            const allDates = state.tasks.flatMap(t => [t.start, t.end, t.baselineStart, t.baselineEnd]).filter(d => d && !isNaN(d.getTime()));
+            const allDates = state.tasks.flatMap(t => [t.start, t.end, t.actualStart, t.actualEnd, t.baselineStart, t.baselineEnd]).filter(d => d && !isNaN(d.getTime()));
             if (allDates.length === 0) {
                 const today = new Date();
                 state.ganttStartDate = addDays(today, -7);
@@ -998,9 +1064,9 @@
             }
             const minDate = new Date(Math.min.apply(null, allDates));
             const maxDate = new Date(Math.max.apply(null, allDates));
-            // Removed padding to show only the active project range
-            state.ganttStartDate = minDate;
-            state.ganttEndDate = maxDate;
+            // Add some padding
+            state.ganttStartDate = addDays(minDate, -7);
+            state.ganttEndDate = addDays(maxDate, 14);
         };
         
         const propagateDateChanges = (updatedTaskId) => {
@@ -1145,6 +1211,27 @@
             });
         };
 
+        const calculateTaskStatus = (task) => {
+            if ((task.progress || 0) >= 100) return 'completed';
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const effectiveEndDate = task.actualEnd || task.end;
+            if (effectiveEndDate && today > effectiveEndDate) return 'delayed';
+
+            const effectiveStartDate = task.actualStart || task.start;
+            if (effectiveStartDate && task.duration > 0) {
+                const daysIntoTask = getWorkingDaysDuration(effectiveStartDate, today);
+                const percentTimeElapsed = (daysIntoTask / task.duration) * 100;
+                if (percentTimeElapsed > (task.progress || 0) + 20) { // 20% tolerance
+                    return 'at-risk';
+                }
+            }
+
+            return 'on-track';
+        };
+
         // --- RENDERING ---
         const render = () => {
             assignTaskColors();
@@ -1209,16 +1296,22 @@
         };
         
         const renderTaskList = () => {
-            const taskHeaderHtml = `
+            if (state.viewMode === 'presentation') {
+                renderPresentationTaskList();
+            } else {
+                renderUpdateTaskList();
+            }
+        };
+
+        const renderPresentationTaskList = () => {
+             const taskHeaderHtml = `
                 <div class="col-span-5 p-2 border-r flex items-center font-semibold">ชื่องาน</div>
                 <div class="col-span-1 p-2 border-r flex items-center justify-center font-semibold">เวลา</div>
                 <div class="col-span-2 p-2 border-r flex items-center justify-center font-semibold">เริ่มแผน</div>
-                ${state.viewMode === 'update' ? '<div class="col-span-2 p-2 border-r flex items-center justify-center font-semibold">เริ่มจริง</div>' : ''}
-                <div class="col-span-2 p-2 ${state.viewMode === 'update' ? 'border-r' : ''} flex items-center justify-center font-semibold">เสร็จแผน</div>
-                ${state.viewMode === 'update' ? '<div class="col-span-2 p-2 flex items-center justify-center font-semibold">เสร็จจริง</div>' : ''}`;
+                <div class="col-span-2 p-2 flex items-center justify-center font-semibold">เสร็จแผน</div>`;
             
             taskGridHeader.innerHTML = taskHeaderHtml;
-            taskGridHeader.className = `grid ${state.viewMode === 'update' ? 'grid-cols-14' : 'grid-cols-10'} border-b-2 border-[var(--border-color)] text-xs text-[var(--text-secondary)] flex-shrink-0 bg-white z-10`;
+            taskGridHeader.className = `grid grid-cols-10 border-b-2 border-[var(--border-color)] text-xs text-[var(--text-secondary)] flex-shrink-0 bg-white z-10`;
 
             const renderTaskRow = (task, level, isParentCollapsed) => {
                 if (isParentCollapsed) return '';
@@ -1227,21 +1320,74 @@
                 let rowHtml = '';
                 const duration = task.duration || 0;
                 const isMilestone = duration <= 1 && task.start && task.end && task.start.getTime() === task.end.getTime();
-                const gridCols = state.viewMode === 'update' ? 'grid-cols-14' : 'grid-cols-10';
                 let taskNameClass = level === 0 ? 'font-bold text-base' : 'font-medium';
                 const rowStyle = task.parentId === null && task.color ? `background-color: ${lightenHexColor(task.color, 90)};` : '';
 
-                rowHtml += `<div id="task-row-${task.id}" data-task-id="${task.id}" class="task-row grid ${gridCols} text-sm items-center border-b hover:bg-blue-50/50 cursor-pointer ${task.isCollapsed ? 'collapsed' : ''}" style="--level: ${level}; height: 36px; ${rowStyle}">
+                rowHtml += `<div id="task-row-${task.id}" data-task-id="${task.id}" class="task-row grid grid-cols-10 text-sm items-center border-b hover:bg-blue-50/50 cursor-pointer ${task.isCollapsed ? 'collapsed' : ''}" style="--level: ${level}; height: 36px; ${rowStyle}">
                         <div class="col-span-5 p-2 border-r flex items-center group relative" style="padding-left: ${level * 20 + 10}px;">
                             ${isParent ? `<button class="collapse-btn mr-2 p-1 rounded-full hover:bg-gray-200"><svg class="collapse-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-9"/></svg></button>` : `<span class="w-7 mr-2"></span>`}
                             <span class="${taskNameClass} flex-grow truncate">${task.name}</span>
+                        </div>
+                        <div class="col-span-1 p-2 border-r text-center text-gray-600">${isMilestone ? 'Milestone' : `${duration} วัน`}</div>
+                        <div class="col-span-2 p-2 border-r text-center">${formatThaiDate(task.start)}</div>
+                        <div class="col-span-2 p-2 text-center">${formatThaiDate(task.end)}</div>
+                    </div>`;
+                children.forEach(child => rowHtml += renderTaskRow(child, level + 1, task.isCollapsed));
+                return rowHtml;
+            };
+            taskGridBody.innerHTML = state.tasks.filter(t => t.parentId === null).map(task => renderTaskRow(task, 0, false)).join('');
+        }
+
+        const renderUpdateTaskList = () => {
+             const taskHeaderHtml = `
+                <div class="col-span-5 p-2 border-r flex items-center font-semibold">ชื่องาน</div>
+                <div class="col-span-1 p-2 border-r flex items-center justify-center font-semibold">สถานะ</div>
+                <div class="col-span-3 p-2 border-r flex items-center justify-center font-semibold">ความคืบหน้า</div>
+                <div class="col-span-2 p-2 border-r flex items-center justify-center font-semibold">เริ่มจริง</div>
+                <div class="col-span-2 p-2 flex items-center justify-center font-semibold">เสร็จจริง</div>`;
+            
+            taskGridHeader.innerHTML = taskHeaderHtml;
+            taskGridHeader.className = `grid grid-cols-13 border-b-2 border-[var(--border-color)] text-xs text-[var(--text-secondary)] flex-shrink-0 bg-white z-10`;
+
+            const renderTaskRow = (task, level, isParentCollapsed) => {
+                if (isParentCollapsed) return '';
+                const isParent = state.tasks.some(t => t.parentId === task.id);
+                const children = state.tasks.filter(t => t.parentId === task.id);
+                let rowHtml = '';
+
+                let taskNameClass = level === 0 ? 'font-bold' : 'font-medium';
+                const rowStyle = task.parentId === null && task.color ? `background-color: ${lightenHexColor(task.color, 95)};` : '';
+                const status = calculateTaskStatus(task);
+                const statusColors = {
+                    completed: 'var(--status-completed)',
+                    'on-track': 'var(--status-on-track)',
+                    'at-risk': 'var(--status-at-risk)',
+                    delayed: 'var(--status-delayed)',
+                };
+                const statusTooltips = {
+                    completed: 'เสร็จสิ้น', 'on-track': 'ตามแผน', 'at-risk': 'มีความเสี่ยง', delayed: 'ล่าช้า',
+                };
+
+                rowHtml += `<div id="task-row-${task.id}" data-task-id="${task.id}" class="task-row grid grid-cols-13 text-sm items-center border-b hover:bg-blue-50/50 ${task.isCollapsed ? 'collapsed' : ''}" style="--level: ${level}; height: 36px; ${rowStyle}">
+                        <div class="col-span-5 p-2 border-r flex items-center group relative h-full" style="padding-left: ${level * 20 + 10}px;">
+                            ${isParent ? `<button class="collapse-btn mr-2 p-1 rounded-full hover:bg-gray-200"><svg class="collapse-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-9"/></svg></button>` : `<span class="w-7 mr-2"></span>`}
+                            <span class="${taskNameClass} flex-grow truncate cursor-pointer" data-editable="name">${task.name}</span>
                              <button class="add-subtask-btn absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-blue-500 text-white opacity-0 group-hover:opacity-100 transition-opacity" title="เพิ่ม Task ย่อย">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                             </button>
                         </div>
-                        <div class="col-span-1 p-2 border-r text-center text-gray-600">${isMilestone ? 'Milestone' : `${duration} วัน`}</div>
-                        <div class="col-span-2 p-2 border-r text-center">${formatThaiDate(task.start)}</div> ${state.viewMode === 'update' ? `<div class="col-span-2 p-2 border-r text-center text-gray-600">${formatThaiDate(task.actualStart)}</div>` : ''}
-                        <div class="col-span-2 p-2 border-r text-center">${formatThaiDate(task.end)}</div> ${state.viewMode === 'update' ? `<div class="col-span-2 p-2 text-center text-gray-600">${formatThaiDate(task.actualEnd)}</div>` : ''}</div>`;
+                        <div class="col-span-1 p-2 border-r text-center flex justify-center items-center h-full">
+                            <div class="status-dot" style="background-color: ${statusColors[status]};" title="${statusTooltips[status]}"></div>
+                        </div>
+                        <div class="col-span-3 p-2 border-r text-center text-gray-600 h-full cursor-pointer" data-editable="progress">
+                             <div class="progress-bar-container w-full">
+                                <div class="progress-bar-fill" style="width: ${task.progress || 0}%; background-color: ${task.color || 'var(--primary-color)'};"></div>
+                                <span class="progress-bar-text">${task.progress || 0}%</span>
+                             </div>
+                        </div>
+                        <div class="col-span-2 p-2 border-r text-center cursor-pointer h-full" data-editable="actualStart">${formatThaiDateShort(task.actualStart)}</div>
+                        <div class="col-span-2 p-2 text-center cursor-pointer h-full" data-editable="actualEnd">${formatThaiDateShort(task.actualEnd)}</div>
+                    </div>`;
                 children.forEach(child => rowHtml += renderTaskRow(child, level + 1, task.isCollapsed));
                 return rowHtml;
             };
@@ -1324,58 +1470,14 @@
             let barsHtml = '';
             
             visibleTasks.forEach((task, index) => {
-                if (!task.start || !task.end) return;
-                let color = task.color || '#a5b4fc';
                 const isParent = state.tasks.some(t => t.parentId === task.id);
-
-                if (state.showCriticalPath && task.isCritical) color = 'var(--critical-color)';
-                const left = getDaysBetween(state.ganttStartDate, task.start) * state.dayWidth;
-                const durationDays = getDaysBetween(task.start, task.end);
-                const width = (durationDays + 1) * state.dayWidth;
-                const top = index * 36;
-                const isMilestone = task.duration <= 1 && task.start.getTime() === task.end.getTime();
-
-                if (isMilestone) {
-                    barsHtml += `<div class="task-bar milestone absolute" data-task-id="${task.id}" style="left: ${left + state.dayWidth/2 - 12}px; top: ${top + 6}px;"><div class="w-6 h-6 transform rotate-45" style="background-color: ${color};"></div></div>`;
-                } else if (isParent) {
-                    const barTop = top + 10;
-                    barsHtml += `
-                    <div class="task-bar group absolute" data-task-id="${task.id}" style="left: ${left}px; top: ${barTop}px; width: ${width}px; height: 21px;">
-                        <!-- Main Bar -->
-                        <div class="h-4 w-full rounded-sm" style="background-color: ${color};"></div>
-                        
-                        <!-- Left Triangle -->
-                        <div class="absolute left-0 top-4" style="color: ${color};">
-                            <svg width="10" height="7" viewBox="0 0 10 7" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M5 7L0 0H10L5 7Z"/></svg>
-                        </div>
-
-                        <!-- Right Triangle -->
-                        <div class="absolute right-0 top-4" style="color: ${color};">
-                            <svg width="10" height="7" viewBox="0 0 10 7" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M5 7L0 0H10L5 7Z"/></svg>
-                        </div>
-
-                        <span class="absolute left-2 right-2 text-white text-xs font-medium truncate" style="top: -2px;">${task.name}</span>
-                    </div>`;
+                if (state.viewMode === 'update') {
+                    barsHtml += renderUpdateModeBar(task, index);
                 } else {
-                    const progress = task.progress || 0;
-                    const lightColor = lightenHexColor(color, 75);
-                    const barTop = top + 4;
-                    const backgroundStyle = state.viewMode === 'update' ? `background: linear-gradient(to right, ${color} ${progress}%, ${lightColor} ${progress}%);` : `background-color: ${color};`;
-                    const hoverContent = state.viewMode === 'update' ? `<span class="absolute left-2 right-2 text-white text-xs font-medium truncate hidden group-hover:block">${progress}% Complete</span>` : '';
-                    const mainContent = state.viewMode === 'update' ? `<span class="absolute left-2 right-2 text-white text-xs font-medium truncate group-hover:hidden">${task.name}</span>` : `<span class="absolute left-2 right-2 text-white text-xs font-medium truncate">${task.name}</span>`;
-                    barsHtml += `<div class="task-bar group absolute h-7 rounded-md flex items-center" data-task-id="${task.id}" style="left: ${left}px; top: ${barTop}px; width: ${width}px; ${backgroundStyle}">
-                            ${mainContent}
-                            ${hoverContent}
-                            ${state.viewMode === 'update' ? `<div class="task-resizer-left absolute left-0 top-0 h-full w-2 cursor-ew-resize"></div> <div class="task-resizer-right absolute right-0 top-0 h-full w-2 cursor-ew-resize"></div>` : ''}
-                        </div>`;
-                }
-
-                if (state.showBaseline && task.baselineStart && task.baselineEnd && !isMilestone) {
-                    const bLeft = getDaysBetween(state.ganttStartDate, task.baselineStart) * state.dayWidth;
-                    const bWidth = (getDaysBetween(task.baselineStart, task.baselineEnd) + 1) * state.dayWidth;
-                    barsHtml += `<div class="absolute h-2 bg-gray-400 rounded-full" style="left: ${bLeft}px; top: ${top + 32}px; width: ${bWidth}px; opacity: 0.7;"></div>`;
+                    barsHtml += renderPresentationModeBar(task, index);
                 }
             });
+
             ganttBarsContainer.innerHTML = barsHtml;
             ganttBarsContainer.style.height = `${totalHeight}px`;
             const today = new Date();
@@ -1391,6 +1493,75 @@
                 const ganttHeaderHeight = ganttHeader.offsetHeight;
                 if (ganttHeaderHeight > 0) taskGridHeader.style.height = `${ganttHeaderHeight}px`;
             });
+        };
+
+        const renderPresentationModeBar = (task, index) => {
+            if (!task.start || !task.end) return '';
+            let color = task.color || '#a5b4fc';
+            if (state.showCriticalPath && task.isCritical) color = 'var(--critical-color)';
+
+            const left = getDaysBetween(state.ganttStartDate, task.start) * state.dayWidth;
+            const durationDays = getDaysBetween(task.start, task.end);
+            const width = (durationDays + 1) * state.dayWidth;
+            const top = index * 36;
+            const isMilestone = task.duration <= 1 && task.start.getTime() === task.end.getTime();
+            const isParent = state.tasks.some(t => t.parentId === task.id);
+            let barHtml = '';
+
+            if (isMilestone) {
+                barHtml = `<div class="task-bar milestone absolute" data-task-id="${task.id}" style="left: ${left + state.dayWidth/2 - 12}px; top: ${top + 6}px;"><div class="w-6 h-6 transform rotate-45" style="background-color: ${color};"></div></div>`;
+            } else if (isParent) {
+                const barTop = top + 10;
+                barHtml = `<div class="task-bar group absolute" data-task-id="${task.id}" style="left: ${left}px; top: ${barTop}px; width: ${width}px; height: 21px;">
+                    <div class="h-4 w-full rounded-sm" style="background-color: ${color};"></div>
+                    <div class="absolute left-0 top-4" style="color: ${color};"><svg width="10" height="7" viewBox="0 0 10 7" fill="currentColor"><path d="M5 7L0 0H10L5 7Z"/></svg></div>
+                    <div class="absolute right-0 top-4" style="color: ${color};"><svg width="10" height="7" viewBox="0 0 10 7" fill="currentColor"><path d="M5 7L0 0H10L5 7Z"/></svg></div>
+                    <span class="absolute left-2 right-2 text-white text-xs font-medium truncate" style="top: -2px;">${task.name}</span>
+                </div>`;
+            } else {
+                const barTop = top + 4;
+                barHtml = `<div class="task-bar group absolute h-7 rounded-md flex items-center" data-task-id="${task.id}" style="left: ${left}px; top: ${barTop}px; width: ${width}px; background-color: ${color};">
+                    <span class="absolute left-2 right-2 text-white text-xs font-medium truncate">${task.name}</span>
+                </div>`;
+            }
+
+            if (state.showBaseline && task.baselineStart && task.baselineEnd && !isMilestone) {
+                const bLeft = getDaysBetween(state.ganttStartDate, task.baselineStart) * state.dayWidth;
+                const bWidth = (getDaysBetween(task.baselineStart, task.baselineEnd) + 1) * state.dayWidth;
+                barHtml += `<div class="absolute h-2 bg-gray-400 rounded-full" style="left: ${bLeft}px; top: ${top + 32}px; width: ${bWidth}px; opacity: 0.7;"></div>`;
+            }
+            return barHtml;
+        };
+
+        const renderUpdateModeBar = (task, index) => {
+            const plannedStart = task.start;
+            const plannedEnd = task.end;
+            const actualStart = task.actualStart || task.start;
+            const actualEnd = task.actualEnd || (actualStart ? addWorkingDays(actualStart, (task.duration || 1) -1) : task.end);
+            
+            if (!actualStart || !actualEnd) return '';
+            
+            let color = task.color || '#a5b4fc';
+            if (state.showCriticalPath && task.isCritical) color = 'var(--critical-color)';
+
+            const left = getDaysBetween(state.ganttStartDate, actualStart) * state.dayWidth;
+            const durationDays = getDaysBetween(actualStart, actualEnd);
+            const width = (durationDays + 1) * state.dayWidth;
+            const top = index * 36;
+            const progress = task.progress || 0;
+            const lightColor = lightenHexColor(color, 80);
+            let barHtml = '';
+            
+            const plannedShadowHtml = (plannedStart && plannedEnd) ? `<div class="task-bar-planned-shadow" style="left: ${getDaysBetween(state.ganttStartDate, plannedStart) * state.dayWidth}px; width: ${(getDaysBetween(plannedStart, plannedEnd) + 1) * state.dayWidth}px;"></div>` : '';
+
+            barHtml += `<div class="task-bar group absolute h-7 rounded-md" data-task-id="${task.id}" style="left: ${left}px; top: ${top + 4}px; width: ${width}px; background-color: ${lightColor};">
+                <div class="h-full rounded-md" style="width: ${progress}%; background-color: ${color};"></div>
+                <span class="absolute left-2 right-2 text-white text-xs font-medium truncate" style="top: 5px; text-shadow: 0 0 3px rgba(0,0,0,0.5);">${task.name}</span>
+                <div class="task-resizer-left absolute left-0 top-0 h-full w-2 cursor-ew-resize"></div>
+                <div class="task-resizer-right absolute right-0 top-0 h-full w-2 cursor-ew-resize"></div>
+            </div>`;
+            
+            return plannedShadowHtml + barHtml;
         };
         
         const renderDependencies = (visibleTasks) => {
@@ -1712,6 +1883,8 @@
 
                 } else if (e.target.closest('.collapse-btn')) {
                     if (task) { task.isCollapsed = !task.isCollapsed; render(); }
+                } else if (e.target.closest('[data-editable="name"]') && state.viewMode === 'update') {
+                     makeNameEditable(e.target.closest('[data-editable="name"]'), task);
                 } else {
                     openEditModal(taskId);
                 }
@@ -1881,6 +2054,40 @@
                     taskEndInput.value = formatDate(newDates.end);
                 }
             }
+        };
+
+        const makeNameEditable = (nameSpan, task) => {
+            const currentText = nameSpan.textContent;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentText;
+            input.className = 'inline-edit-input';
+            
+            nameSpan.style.display = 'none';
+            nameSpan.parentElement.appendChild(input);
+            input.focus();
+            input.select();
+
+            const saveChanges = () => {
+                const newName = input.value.trim();
+                if (newName && newName !== currentText) {
+                    task.name = newName;
+                    nameSpan.textContent = newName;
+                }
+                input.remove();
+                nameSpan.style.display = '';
+                renderGanttChart(); // Re-render to update bar text
+            };
+
+            input.addEventListener('blur', saveChanges);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    input.blur();
+                } else if (e.key === 'Escape') {
+                    input.value = currentText; // Revert
+                    input.blur();
+                }
+            });
         };
 
         const openEditModal = (taskId) => {
