@@ -225,6 +225,19 @@
             font-family: inherit;
             background-color: #f0f9ff;
         }
+
+        /* Drag and Drop styles */
+        .task-row.opacity-50 {
+            opacity: 0.5;
+        }
+        .drop-target-above {
+            border-top: 3px solid var(--primary-color);
+            box-shadow: inset 0 2px 0 var(--primary-color);
+        }
+        .drop-target-below {
+            border-bottom: 3px solid var(--primary-color);
+            box-shadow: inset 0 -2px 0 var(--primary-color);
+        }
     </style>
 </head>
 <body class="bg-gray-100 overflow-hidden h-screen flex flex-col">
@@ -753,12 +766,10 @@
             state.tasks.forEach(t => delete t.color);
 
             // Assign colors to top-level parents
-            state.tasks.forEach(task => {
-                if (task.parentId === null) {
-                    const color = state.taskColors[mainTaskCounter % state.taskColors.length];
-                    task.color = color;
-                    mainTaskCounter++;
-                }
+            state.tasks.filter(t => t.parentId === null).sort((a,b) => (a.order || 0) - (b.order || 0)).forEach(task => {
+                const color = state.taskColors[mainTaskCounter % state.taskColors.length];
+                task.color = color;
+                mainTaskCounter++;
             });
 
             // Propagate colors to children
@@ -791,11 +802,12 @@
             if (data) {
                 const parsedData = JSON.parse(data);
                 state.projectName = parsedData.projectName || 'โครงการตัวอย่าง';
-                state.tasks = parsedData.tasks.map(t => {
+                state.tasks = parsedData.tasks.map((t, i) => {
                     const start = parseDate(t.start);
                     const end = parseDate(t.end);
                     return {
                         ...t, start, end,
+                        order: t.order ?? i,
                         duration: t.duration || getWorkingDaysDuration(start, end),
                         actualStart: parseDate(t.actualStart), actualEnd: parseDate(t.actualEnd),
                         baselineStart: parseDate(t.baselineStart), baselineEnd: parseDate(t.baselineEnd),
@@ -820,7 +832,7 @@
                 {id: 6, name: 'Phase 2: Design', start: null, end: null, duration: 0, progress: 10, parentId: null, isCollapsed: false, dependencies: '5FS+0'},
                 {id: 7, name: 'UI/UX Wireframes', start: null, end: null, duration: 5, progress: 25, parentId: 6, dependencies: '5FS+1', schedulingMode: 'auto'},
                 {id: 8, name: 'Visual Design', start: null, end: null, duration: 5, progress: 0, parentId: 6, dependencies: '7FS+0', schedulingMode: 'auto'},
-             ].map(t => ({...t, actualStart: null, actualEnd: null, baselineStart: null, baselineEnd: null}));
+             ].map((t, i) => ({...t, order: i, actualStart: null, actualEnd: null, baselineStart: null, baselineEnd: null}));
         };
 
         // --- PROJECT FILE OPERATIONS ---
@@ -869,11 +881,12 @@
                     if (!parsedData.tasks || !parsedData.projectName) throw new Error('Invalid project file format.');
                     
                     state.projectName = parsedData.projectName;
-                    state.tasks = parsedData.tasks.map(t => {
+                    state.tasks = parsedData.tasks.map((t, i) => {
                         const start = parseDate(t.start);
                         const end = parseDate(t.end);
                         return {
                             ...t, start, end,
+                            order: t.order ?? i,
                             duration: t.duration || getWorkingDaysDuration(start, end),
                             actualStart: parseDate(t.actualStart), actualEnd: parseDate(t.actualEnd),
                             baselineStart: parseDate(t.baselineStart), baselineEnd: parseDate(t.baselineEnd),
@@ -1011,11 +1024,11 @@
                         </tr>
                     `;
 
-                    const children = state.tasks.filter(t => t.parentId === task.id);
+                    const children = state.tasks.filter(t => t.parentId === task.id).sort((a, b) => (a.order || 0) - (b.order || 0));
                     children.forEach(addRowsForTask);
                 };
                 
-                state.tasks.filter(t => t.parentId === null).forEach(addRowsForTask);
+                state.tasks.filter(t => t.parentId === null).sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(addRowsForTask);
 
                 tableHtml += `</tbody></table></body></html>`;
 
@@ -1328,14 +1341,14 @@
             const renderTaskRow = (task, level, isParentCollapsed) => {
                 if (isParentCollapsed) return '';
                 const isParent = state.tasks.some(t => t.parentId === task.id);
-                const children = state.tasks.filter(t => t.parentId === task.id);
+                const children = state.tasks.filter(t => t.parentId === task.id).sort((a,b) => (a.order || 0) - (b.order || 0));
                 let rowHtml = '';
                 const duration = task.duration || 0;
                 const isMilestone = duration <= 1 && task.start && task.end && task.start.getTime() === task.end.getTime();
                 let taskNameClass = level === 0 ? 'font-bold text-base' : 'font-medium';
                 const rowStyle = task.parentId === null && task.color ? `background-color: ${lightenHexColor(task.color, 90)};` : '';
 
-                rowHtml += `<div id="task-row-${task.id}" data-task-id="${task.id}" class="task-row grid grid-cols-10 text-sm items-center border-b hover:bg-blue-50/50 cursor-pointer ${task.isCollapsed ? 'collapsed' : ''}" style="--level: ${level}; height: 36px; ${rowStyle}">
+                rowHtml += `<div id="task-row-${task.id}" data-task-id="${task.id}" class="task-row grid grid-cols-10 text-sm items-center border-b hover:bg-blue-50/50 cursor-pointer ${task.isCollapsed ? 'collapsed' : ''}" style="--level: ${level}; height: 36px; ${rowStyle}" draggable="true">
                         <div class="col-span-5 p-2 border-r flex items-center group relative" style="padding-left: ${level * 20 + 10}px;">
                             ${isParent ? `<button class="collapse-btn mr-2 p-1 rounded-full hover:bg-gray-200"><svg class="collapse-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-9"/></svg></button>` : `<span class="w-7 mr-2"></span>`}
                             <span class="${taskNameClass} flex-grow truncate">${task.name}</span>
@@ -1347,7 +1360,7 @@
                 children.forEach(child => rowHtml += renderTaskRow(child, level + 1, task.isCollapsed));
                 return rowHtml;
             };
-            taskGridBody.innerHTML = state.tasks.filter(t => t.parentId === null).map(task => renderTaskRow(task, 0, false)).join('');
+            taskGridBody.innerHTML = state.tasks.filter(t => t.parentId === null).sort((a,b) => (a.order || 0) - (b.order || 0)).map(task => renderTaskRow(task, 0, false)).join('');
         }
 
         const renderUpdateTaskList = () => {
@@ -1364,7 +1377,7 @@
             const renderTaskRow = (task, level, isParentCollapsed) => {
                 if (isParentCollapsed) return '';
                 const isParent = state.tasks.some(t => t.parentId === task.id);
-                const children = state.tasks.filter(t => t.parentId === task.id);
+                const children = state.tasks.filter(t => t.parentId === task.id).sort((a,b) => (a.order || 0) - (b.order || 0));
                 let rowHtml = '';
 
                 let taskNameClass = level === 0 ? 'font-bold' : 'font-medium';
@@ -1380,7 +1393,7 @@
                     completed: 'เสร็จสิ้น', 'on-track': 'ตามแผน', 'at-risk': 'มีความเสี่ยง', delayed: 'ล่าช้า',
                 };
 
-                rowHtml += `<div id="task-row-${task.id}" data-task-id="${task.id}" class="task-row grid grid-cols-13 text-sm items-center border-b hover:bg-blue-50/50 ${task.isCollapsed ? 'collapsed' : ''}" style="--level: ${level}; height: 36px; ${rowStyle}">
+                rowHtml += `<div id="task-row-${task.id}" data-task-id="${task.id}" class="task-row grid grid-cols-13 text-sm items-center border-b hover:bg-blue-50/50 ${task.isCollapsed ? 'collapsed' : ''}" style="--level: ${level}; height: 36px; ${rowStyle}" draggable="true">
                         <div class="col-span-5 p-2 border-r flex items-center group relative h-full" style="padding-left: ${level * 20 + 10}px;">
                             ${isParent ? `<button class="collapse-btn mr-2 p-1 rounded-full hover:bg-gray-200"><svg class="collapse-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-9"/></svg></button>` : `<span class="w-7 mr-2"></span>`}
                             <span class="${taskNameClass} flex-grow truncate cursor-pointer" data-editable="name">${task.name}</span>
@@ -1403,7 +1416,7 @@
                 children.forEach(child => rowHtml += renderTaskRow(child, level + 1, task.isCollapsed));
                 return rowHtml;
             };
-            taskGridBody.innerHTML = state.tasks.filter(t => t.parentId === null).map(task => renderTaskRow(task, 0, false)).join('');
+            taskGridBody.innerHTML = state.tasks.filter(t => t.parentId === null).sort((a,b) => (a.order || 0) - (b.order || 0)).map(task => renderTaskRow(task, 0, false)).join('');
         };
 
         const renderGanttChart = () => {
@@ -1416,9 +1429,9 @@
             const processVisibleTasks = (task, isParentCollapsed) => {
                 if (isParentCollapsed) return;
                 visibleTasks.push(task);
-                state.tasks.filter(t => t.parentId === task.id).forEach(child => processVisibleTasks(child, task.isCollapsed));
+                state.tasks.filter(t => t.parentId === task.id).sort((a,b) => (a.order || 0) - (b.order || 0)).forEach(child => processVisibleTasks(child, task.isCollapsed));
             };
-            state.tasks.filter(t => t.parentId === null).forEach(t => processVisibleTasks(t, false));
+            state.tasks.filter(t => t.parentId === null).sort((a,b) => (a.order || 0) - (b.order || 0)).forEach(t => processVisibleTasks(t, false));
             const totalHeight = visibleTasks.length * 36;
 
 
@@ -1865,7 +1878,9 @@
                     const today = new Date(); today.setHours(0,0,0,0);
                     const duration = 1;
                     const endDate = addWorkingDays(today, duration > 0 ? duration - 1 : 0);
-                    state.tasks.push({ id: getNextId(), name: e.target.value.trim(), start: today, end: endDate, duration: duration, progress: 0, parentId: null, isCollapsed: false, dependencies: '', schedulingMode: 'manual', actualStart: null, actualEnd: null, baselineStart: null, baselineEnd: null });
+                    const topLevelTasks = state.tasks.filter(t => t.parentId === null);
+                    const maxOrder = topLevelTasks.length > 0 ? Math.max(...topLevelTasks.map(t => t.order || 0)) : -1;
+                    state.tasks.push({ id: getNextId(), name: e.target.value.trim(), start: today, end: endDate, duration: duration, progress: 0, parentId: null, isCollapsed: false, dependencies: '', schedulingMode: 'manual', order: maxOrder + 1, actualStart: null, actualEnd: null, baselineStart: null, baselineEnd: null });
                     e.target.value = '';
                     render();
                     taskGridContainer.scrollTop = taskGridContainer.scrollHeight;
@@ -1884,7 +1899,9 @@
                     const duration = 1;
                     const endDate = addWorkingDays(today, duration > 0 ? duration - 1 : 0);
                     const newId = getNextId();
-                    state.tasks.push({ id: newId, name: 'New Sub-task', start: today, end: endDate, duration: duration, progress: 0, parentId: taskId, isCollapsed: false, dependencies: '', schedulingMode: 'manual' });
+                    const siblings = state.tasks.filter(t => t.parentId === taskId);
+                    const maxOrder = siblings.length > 0 ? Math.max(...siblings.map(t => t.order || 0)) : -1;
+                    state.tasks.push({ id: newId, name: 'New Sub-task', start: today, end: endDate, duration: duration, progress: 0, parentId: taskId, isCollapsed: false, dependencies: '', schedulingMode: 'manual', order: maxOrder + 1 });
                     
                     if(task.isCollapsed) task.isCollapsed = false;
                     
@@ -1961,6 +1978,115 @@
             [depTaskSelect, depTypeSelect, depLagInput].forEach(el => { el.addEventListener('change', handleDependencyChange); });
             [schedManualRadio, schedAutoRadio].forEach(el => { el.addEventListener('change', handleSchedulingModeChange); });
             taskProgressInput.addEventListener('input', (e) => progressValue.textContent = e.target.value);
+
+            // --- Drag and Drop Logic ---
+            let draggedTaskId = null;
+            
+            const reorderTasks = (draggedId, targetId, dropAbove) => {
+                const draggedTask = state.tasks.find(t => t.id === draggedId);
+                if (!draggedTask) return;
+
+                const siblings = state.tasks
+                    .filter(t => t.parentId === draggedTask.parentId)
+                    .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+                const draggedIndex = siblings.findIndex(t => t.id === draggedId);
+                const [removedTask] = siblings.splice(draggedIndex, 1);
+                let targetIndex = siblings.findIndex(t => t.id === targetId);
+
+                if (dropAbove) {
+                    siblings.splice(targetIndex, 0, removedTask);
+                } else {
+                    siblings.splice(targetIndex + 1, 0, removedTask);
+                }
+                
+                siblings.forEach((task, index) => {
+                    const taskInState = state.tasks.find(t => t.id === task.id);
+                    if (taskInState) {
+                        taskInState.order = index;
+                    }
+                });
+            };
+
+            taskGridBody.addEventListener('dragstart', (e) => {
+                const taskRow = e.target.closest('.task-row');
+                if (taskRow) {
+                    draggedTaskId = parseInt(taskRow.dataset.taskId);
+                    e.dataTransfer.setData('text/plain', draggedTaskId.toString());
+                    e.dataTransfer.effectAllowed = 'move';
+                    setTimeout(() => {
+                        taskRow.classList.add('opacity-50');
+                    }, 0);
+                }
+            });
+
+            taskGridBody.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const targetRow = e.target.closest('.task-row');
+                document.querySelectorAll('.drop-target-above, .drop-target-below').forEach(el => {
+                    if (el !== targetRow) el.classList.remove('drop-target-above', 'drop-target-below');
+                });
+                if (targetRow && draggedTaskId) {
+                    const targetId = parseInt(targetRow.dataset.taskId);
+                    const draggedTask = state.tasks.find(t => t.id === draggedTaskId);
+                    const targetTask = state.tasks.find(t => t.id === targetId);
+
+                    if (draggedTask && targetTask && draggedTask.id !== targetTask.id && draggedTask.parentId === targetTask.parentId) {
+                        e.dataTransfer.dropEffect = 'move';
+                        const rect = targetRow.getBoundingClientRect();
+                        const midY = rect.top + rect.height / 2;
+                        if (e.clientY < midY) {
+                            targetRow.classList.add('drop-target-above');
+                            targetRow.classList.remove('drop-target-below');
+                        } else {
+                            targetRow.classList.add('drop-target-below');
+                            targetRow.classList.remove('drop-target-above');
+                        }
+                    } else {
+                        e.dataTransfer.dropEffect = 'none';
+                    }
+                }
+            });
+            
+            taskGridBody.addEventListener('dragleave', (e) => {
+                const targetRow = e.target.closest('.task-row');
+                if (targetRow) {
+                    targetRow.classList.remove('drop-target-above', 'drop-target-below');
+                }
+            });
+
+            taskGridBody.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const targetRow = e.target.closest('.task-row');
+                if (targetRow) {
+                    targetRow.classList.remove('drop-target-above', 'drop-target-below');
+                    const targetId = parseInt(targetRow.dataset.taskId);
+                    const draggedId = parseInt(e.dataTransfer.getData('text/plain'));
+                    
+                    const draggedTask = state.tasks.find(t => t.id === draggedId);
+                    const targetTask = state.tasks.find(t => t.id === targetId);
+
+                    if (draggedTask && targetTask && draggedTask.id !== targetTask.id && draggedTask.parentId === targetTask.parentId) {
+                        const rect = targetRow.getBoundingClientRect();
+                        const midY = rect.top + rect.height / 2;
+                        const dropAbove = e.clientY < midY;
+                        reorderTasks(draggedId, targetId, dropAbove);
+                        render();
+                    }
+                }
+            });
+
+            taskGridBody.addEventListener('dragend', (e) => {
+                const taskRow = taskGridBody.querySelector(`.task-row.opacity-50`);
+                if (taskRow) {
+                    taskRow.classList.remove('opacity-50');
+                }
+                draggedTaskId = null;
+                document.querySelectorAll('.drop-target-above, .drop-target-below').forEach(el => {
+                    el.classList.remove('drop-target-above', 'drop-target-below');
+                });
+            });
+
         };
         
         const exportCurrentView = () => {
