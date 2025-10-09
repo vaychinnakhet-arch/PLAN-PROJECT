@@ -380,102 +380,114 @@
     </main>
     
     <!-- Task Edit Modal -->
-    <div id="edit-task-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6 relative animate-fade-in-down">
-             <button id="close-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-             </button>
-             <h2 class="text-xl font-bold mb-4">แก้ไข Task</h2>
-             <form id="edit-task-form">
-                 <input type="hidden" id="task-id-input">
-                 <div class="grid grid-cols-1 gap-4">
-                     <div>
-                         <label for="task-name-input" class="block text-sm font-medium text-gray-700">ชื่อ Task</label>
-                         <input type="text" id="task-name-input" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                     </div>
-
-                    <div>
-                        <label for="task-parent-select" class="block text-sm font-medium text-gray-700">อยู่ภายใต้งาน (Parent Task)</label>
-                        <select id="task-parent-select" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                            <option value="null">-- ไม่มี (งานหลัก) --</option>
-                        </select>
-                    </div>
-                     
-                    <!-- Scheduling Mode -->
-                    <div class="border-t pt-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">การกำหนดเวลา (Scheduling)</label>
-                        <div class="flex gap-6">
-                            <div class="flex items-center">
-                                <input type="radio" id="sched-manual" name="scheduling-mode" value="manual" checked class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
-                                <label for="sched-manual" class="ml-2 block text-sm text-gray-900">กำหนดด้วยตนเอง</label>
-                            </div>
-                            <div class="flex items-center">
-                                <input type="radio" id="sched-auto" name="scheduling-mode" value="auto" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
-                                <label for="sched-auto" class="ml-2 block text-sm text-gray-900">อัตโนมัติ (จาก Dependencies)</label>
-                            </div>
+    <div id="edit-task-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col animate-fade-in-down">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h2 class="text-xl font-bold text-gray-800">แก้ไข Task</h2>
+                <button id="close-modal-btn" class="text-gray-400 hover:text-gray-600 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <form id="edit-task-form" class="overflow-y-auto p-6">
+                <input type="hidden" id="task-id-input">
+                <div class="space-y-6">
+                    <!-- Task Info -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                        <div>
+                            <label for="task-name-input" class="block text-sm font-medium text-gray-700">ชื่อ Task</label>
+                            <input type="text" id="task-name-input" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="task-parent-select" class="block text-sm font-medium text-gray-700">อยู่ภายใต้งาน (Parent Task)</label>
+                            <select id="task-parent-select" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="null">-- ไม่มี (งานหลัก) --</option>
+                            </select>
                         </div>
                     </div>
 
-                    <!-- Date & Duration Inputs Container -->
-                    <div id="date-duration-container" class="grid grid-cols-3 gap-4">
-                         <div>
-                            <label for="task-duration-input" class="block text-sm font-medium text-gray-700">ระยะเวลา (วันทำงาน)</label>
-                            <input type="number" id="task-duration-input" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-white" placeholder="เช่น 5">
-                        </div>
-                         <div>
-                             <label for="task-start-input" class="block text-sm font-medium text-gray-700">วันเริ่มแผน</label>
-                             <input type="date" id="task-start-input" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-white">
-                         </div>
-                         <div>
-                             <label for="task-end-input" class="block text-sm font-medium text-gray-700">วันเสร็จแผน</label>
-                             <input type="date" id="task-end-input" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-white">
+                    <!-- Scheduling -->
+                    <div class="border-t border-gray-200 pt-6">
+                        <fieldset>
+                            <legend class="text-base font-medium text-gray-900 mb-2">การกำหนดเวลา (Scheduling)</legend>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 items-start">
+                                <div id="date-duration-container" class="grid grid-cols-1 sm:grid-cols-3 gap-4 col-span-2">
+                                    <div>
+                                        <label for="task-duration-input" class="block text-sm font-medium text-gray-700">ระยะเวลา (วันทำงาน)</label>
+                                        <input type="number" id="task-duration-input" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" placeholder="เช่น 5">
+                                    </div>
+                                    <div>
+                                        <label for="task-start-input" class="block text-sm font-medium text-gray-700">วันเริ่มแผน</label>
+                                        <input type="date" id="task-start-input" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    </div>
+                                    <div>
+                                        <label for="task-end-input" class="block text-sm font-medium text-gray-700">วันเสร็จแผน</label>
+                                        <input type="date" id="task-end-input" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-6 col-span-2">
+                                    <div class="flex items-center">
+                                        <input type="radio" id="sched-manual" name="scheduling-mode" value="manual" checked class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                        <label for="sched-manual" class="ml-2 block text-sm text-gray-900">กำหนดด้วยตนเอง</label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input type="radio" id="sched-auto" name="scheduling-mode" value="auto" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                        <label for="sched-auto" class="ml-2 block text-sm text-gray-900">อัตโนมัติ (จาก Dependencies)</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </fieldset>
+                    </div>
+                    
+                    <!-- Actual Dates & Progress -->
+                    <div class="border-t border-gray-200 pt-6">
+                         <legend class="text-base font-medium text-gray-900 mb-2">วันทำงานจริงและความคืบหน้า</legend>
+                         <div class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="task-actual-start-input" class="block text-sm font-medium text-gray-700">วันเริ่มจริง</label>
+                                    <input type="date" id="task-actual-start-input" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                </div>
+                                <div>
+                                    <label for="task-actual-end-input" class="block text-sm font-medium text-gray-700">วันเสร็จจริง</label>
+                                    <input type="date" id="task-actual-end-input" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                </div>
+                            </div>
+                            <div>
+                                <label for="task-progress-input" class="block text-sm font-medium text-gray-700">ความคืบหน้า (<span id="progress-value">0</span>%)</label>
+                                <input type="range" id="task-progress-input" min="0" max="100" class="mt-1 block w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            </div>
                          </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4">
-                         <div>
-                             <label for="task-actual-start-input" class="block text-sm font-medium text-gray-700">วันเริ่มจริง</label>
-                             <input type="date" id="task-actual-start-input" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                         </div>
-                         <div>
-                             <label for="task-actual-end-input" class="block text-sm font-medium text-gray-700">วันเสร็จจริง</label>
-                             <input type="date" id="task-actual-end-input" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                         </div>
-                    </div>
-
-                     <div class="col-span-2">
-                         <label for="task-progress-input" class="block text-sm font-medium text-gray-700">ความคืบหน้า (<span id="progress-value">0</span>%)</label>
-                         <input type="range" id="task-progress-input" min="0" max="100" class="mt-1 block w-full">
-                     </div>
-
-                      <div class="border-t pt-4 mt-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">งานที่ต้องทำก่อนหน้า (Predecessor)</label>
+                    <!-- Dependencies -->
+                    <div class="border-t border-gray-200 pt-6">
+                        <label class="block text-base font-medium text-gray-900 mb-2">งานที่ต้องทำก่อนหน้า (Predecessor)</label>
                         <div class="grid grid-cols-12 gap-2 items-center">
-                            <div class="col-span-7">
+                            <div class="col-span-12 sm:col-span-6">
                                 <select id="dep-task-select" class="block w-full rounded-md border-gray-300 shadow-sm">
                                     <option value="">-- ไม่มี --</option>
                                 </select>
                             </div>
-                            <div class="col-span-3">
-                                 <select id="dep-type-select" class="block w-full rounded-md border-gray-300 shadow-sm">
+                            <div class="col-span-6 sm:col-span-3">
+                                <select id="dep-type-select" class="block w-full rounded-md border-gray-300 shadow-sm">
                                     <option value="FS">Finish-Start</option>
                                     <option value="SS">Start-Start</option>
                                     <option value="FF">Finish-Finish</option>
                                     <option value="SF">Start-Finish</option>
-                                 </select>
+                                </select>
                             </div>
-                            <div class="col-span-2 relative">
-                                <input type="number" id="dep-lag-input" value="0" class="block w-full rounded-md border-gray-300 shadow-sm pr-6" placeholder="Lag">
-                                <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500">วัน</span>
+                            <div class="col-span-6 sm:col-span-3 relative">
+                                <input type="number" id="dep-lag-input" value="0" class="block w-full rounded-md border-gray-300 shadow-sm pr-8" placeholder="Lag">
+                                <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-sm text-gray-500">วัน</span>
                             </div>
                         </div>
                     </div>
-                 </div>
-                 <div class="mt-6 flex justify-end gap-3">
-                     <button type="button" id="delete-task-btn" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition">ลบ Task</button>
-                     <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">บันทึก</button>
-                 </div>
-             </form>
+                </div>
+            </form>
+            <div class="flex justify-end gap-3 p-4 bg-gray-50 border-t">
+                <button type="button" id="delete-task-btn" class="px-4 py-2 bg-red-600 text-white font-semibold rounded-md hover:bg-red-700 transition shadow-sm">ลบ Task</button>
+                <button type="submit" form="edit-task-form" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition shadow-sm">บันทึก</button>
+            </div>
         </div>
     </div>
     
