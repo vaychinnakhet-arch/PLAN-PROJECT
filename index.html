@@ -15,26 +15,27 @@
     
     <style>
         :root {
-            --primary-color: #3b82f6; /* blue-500 */
-            --primary-hover: #2563eb; /* blue-600 */
-            --critical-color: #ef4444; /* red-500 */
-            --header-bg: #f8fafc; /* cool-gray-50 */
+            --primary-color: #6366f1; /* indigo-500 */
+            --primary-hover: #4f46e5; /* indigo-600 */
+            --critical-color: #f43f5e; /* rose-500 */
+            --header-bg: #f8fafc; /* slate-50 */
             --panel-bg: #ffffff;
-            --border-color: #e5e7eb; /* gray-200 */
-            --text-primary: #1f2937; /* gray-800 */
-            --text-secondary: #6b7280; /* gray-500 */
+            --border-color: #e2e8f0; /* slate-200 */
+            --text-primary: #1e293b; /* slate-800 */
+            --text-secondary: #64748b; /* slate-500 */
             --holiday-bg: #f1f5f9; /* slate-100 */
 
             /* Status Colors */
-            --status-completed: #3b82f6; /* blue-500 */
-            --status-on-track: #22c55e; /* green-500 */
-            --status-at-risk: #f97316; /* orange-500 */
-            --status-delayed: #ef4444; /* red-500 */
+            --status-completed: #10b981; /* emerald-500 */
+            --status-on-track: #14b8a6; /* teal-500 */
+            --status-at-risk: #f59e0b; /* amber-500 */
+            --status-delayed: #f43f5e; /* rose-500 */
         }
         body {
             font-family: 'Sarabun', sans-serif;
             color: var(--text-primary);
             overscroll-behavior: none;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
         }
         body[data-mode="update"] #main-header {
             background-color: #f0f9ff; /* blue-50 */
@@ -58,20 +59,22 @@
             cursor: col-resize;
             width: 6px;
             background-color: transparent;
-            transition: background-color 0.2s;
+            transition: background-color 0.3s ease;
             position: relative;
             z-index: 20;
         }
         .panel-resizer:hover {
-            background-color: var(--primary-color);
+            background: linear-gradient(to right, transparent, var(--primary-color), transparent);
+            box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
         }
         .task-bar {
-            transition: all 0.2s ease-in-out;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
         .task-bar:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(99, 102, 241, 0.2);
         }
         .milestone {
             transform-origin: center;
@@ -99,7 +102,7 @@
             transform: rotate(-90deg);
         }
         .control-btn-group {
-            @apply flex items-center p-1 bg-gray-100 rounded-xl border border-gray-200 space-x-1;
+            @apply flex items-center p-2 bg-gradient-to-r from-slate-100 to-slate-50 rounded-xl border border-slate-200 space-x-1 shadow-sm;
         }
         .holiday-text-vertical {
             writing-mode: vertical-rl;
@@ -117,11 +120,12 @@
             display: none;
             min-width: 240px;
             background-color: white;
-            border-radius: 0.5rem;
+            border-radius: 0.75rem;
             border: 1px solid var(--border-color);
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            box-shadow: 0 20px 25px -5px rgba(99, 102, 241, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
             padding: 0.5rem;
-            animation: fadeIn 0.1s ease-out;
+            animation: fadeIn 0.15s ease-out;
+            backdrop-filter: blur(8px);
         }
         .dropdown.show .dropdown-menu {
             display: block;
@@ -130,15 +134,18 @@
             display: flex;
             align-items: center;
             width: 100%;
-            padding: 0.5rem 0.75rem;
+            padding: 0.625rem 0.75rem;
             font-size: 0.875rem;
             text-align: left;
             border-radius: 0.375rem;
-            transition: background-color 0.2s;
+            transition: all 0.2s ease;
             color: var(--text-primary);
+            cursor: pointer;
         }
         .dropdown-item:hover {
-            background-color: #f3f4f6; /* gray-100 */
+            background-color: #eef2ff;
+            color: var(--primary-color);
+            transform: translateX(2px);
         }
         .dropdown-item svg {
             margin-right: 0.75rem;
@@ -146,33 +153,71 @@
             height: 20px;
             color: var(--text-secondary);
         }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { 
+            from { 
+                opacity: 0; 
+                transform: translateY(-10px); 
+            } 
+            to { 
+                opacity: 1; 
+                transform: translateY(0); 
+            } 
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
 
         /* Calendar Styles */
         .calendar-day {
             min-height: 120px;
+            background: white;
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+        }
+        .calendar-day:hover {
+            background: linear-gradient(135deg, #eef2ff, #f0f4ff);
+            box-shadow: inset 0 0 10px rgba(99, 102, 241, 0.05);
         }
         .calendar-day-number {
-            width: 28px;
-            height: 28px;
+            width: 32px;
+            height: 32px;
+            font-weight: 700;
         }
         .calendar-day.today .calendar-day-number {
-            background-color: var(--primary-color);
+            background: linear-gradient(to right, var(--primary-color), #818cf8);
             color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 8px rgba(99, 102, 241, 0.3);
         }
         .calendar-task-bar {
-            left: 2px;
-            right: 2px;
-            height: 22px;
-            transition: all 0.2s ease;
+            left: 3px;
+            right: 3px;
+            height: 24px;
+            transition: all 0.3s ease;
             cursor: pointer;
+            border-radius: 0.375rem;
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+            padding: 2px 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .calendar-task-bar:hover {
-            transform: scale(1.02);
+            transform: scale(1.05);
             z-index: 10;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
         .calendar-day-header {
             writing-mode: horizontal-tb;
+            font-size: 1rem;
         }
 
         /* Update Mode Specific Styles */
@@ -182,30 +227,32 @@
             border-radius: 50%;
         }
         .progress-bar-container {
-            background-color: #e5e7eb;
+            background-color: #e2e8f0;
             border-radius: 9999px;
             overflow: hidden;
-            height: 18px;
+            height: 20px;
             position: relative;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
         }
         .progress-bar-fill {
-            background-color: var(--primary-color);
+            background: linear-gradient(to right, var(--primary-color), #818cf8);
             height: 100%;
-            transition: width 0.3s ease;
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             align-items: center;
             justify-content: flex-end;
-            padding-right: 6px;
+            padding-right: 8px;
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2);
         }
         .progress-bar-text {
-             position: absolute;
-             left: 8px;
-             top: 50%;
-             transform: translateY(-50%);
-             font-size: 11px;
-             font-weight: 500;
-             color: white;
-             text-shadow: 0 0 2px rgba(0,0,0,0.5);
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.4);
         }
         .task-bar-planned-shadow {
             position: absolute;
@@ -217,13 +264,14 @@
         }
         .inline-edit-input {
             width: 100%;
-            padding: 2px 4px;
+            padding: 4px 8px;
             border: 2px solid var(--primary-color);
-            border-radius: 4px;
+            border-radius: 0.375rem;
             outline: none;
             font-size: inherit;
             font-family: inherit;
-            background-color: #f0f9ff;
+            background: linear-gradient(135deg, #eef2ff, #f0f4ff);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
         }
 
         /* Drag and Drop styles */
@@ -233,42 +281,44 @@
         .drop-target-above {
             border-top: 3px solid var(--primary-color);
             box-shadow: inset 0 2px 0 var(--primary-color);
+            background: linear-gradient(to bottom, rgba(99, 102, 241, 0.1), transparent);
         }
         .drop-target-below {
             border-bottom: 3px solid var(--primary-color);
             box-shadow: inset 0 -2px 0 var(--primary-color);
+            background: linear-gradient(to top, rgba(99, 102, 241, 0.1), transparent);
         }
     </style>
 </head>
-<body class="bg-gray-100 overflow-hidden h-screen flex flex-col">
+<body class="bg-gradient-to-br from-slate-50 via-white to-slate-100 overflow-hidden h-screen flex flex-col">
 
     <!-- Header -->
-    <header id="main-header" class="bg-[var(--header-bg)] border-b border-[var(--border-color)] px-4 py-2 flex items-center justify-between flex-shrink-0 z-30 transition-colors duration-300">
-        <div class="flex items-center gap-4">
-            <h1 id="project-name" contenteditable="true" class="text-xl font-bold text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--primary-color)] rounded-md px-2">โครงการตัวอย่าง</h1>
-            <span id="current-date" class="text-sm text-[var(--text-secondary)] font-medium"></span>
+    <header id="main-header" class="bg-gradient-to-r from-slate-50 to-slate-100 border-b-2 border-slate-200 px-6 py-3 flex items-center justify-between flex-shrink-0 z-30 transition-all duration-300 shadow-sm">
+        <div class="flex items-center gap-6">
+            <h1 id="project-name" contenteditable="true" class="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-indigo-400 bg-clip-text text-transparent outline-none focus:ring-2 focus:ring-indigo-500 rounded-md px-3 py-1">โครงการตัวอย่าง</h1>
+            <span id="current-date" class="text-sm text-slate-500 font-semibold"></span>
         </div>
         
         <!-- View Switcher -->
         <div class="absolute left-1/2 -translate-x-1/2">
-             <div id="view-switcher" class="relative bg-gray-200 p-1 rounded-lg flex text-sm font-medium w-48 shadow-inner">
-                <div id="view-switch-bg" class="absolute top-[4px] left-[4px] h-[calc(100%-8px)] w-[calc(50%-4px)] bg-white shadow rounded-md transition-transform duration-300 ease-in-out"></div>
-                <button id="btn-gantt-view" class="relative z-10 py-1 rounded-md text-gray-900 w-1/2 transition-colors duration-300">Gantt</button>
-                <button id="btn-calendar-view" class="relative z-10 py-1 rounded-md text-gray-500 w-1/2 transition-colors duration-300">ปฏิทิน</button>
+             <div id="view-switcher" class="relative bg-slate-200 p-1.5 rounded-lg flex text-sm font-semibold w-48 shadow-md">
+                <div id="view-switch-bg" class="absolute top-[6px] left-[6px] h-[calc(100%-12px)] w-[calc(50%-6px)] bg-white shadow-sm rounded-md transition-transform duration-300 ease-out"></div>
+                <button id="btn-gantt-view" class="relative z-10 py-1.5 rounded-md text-slate-700 w-1/2 transition-all duration-300">Gantt</button>
+                <button id="btn-calendar-view" class="relative z-10 py-1.5 rounded-md text-slate-500 w-1/2 transition-all duration-300">ปฏิทิน</button>
             </div>
         </div>
 
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-6">
             <!-- Mode Switch -->
-            <div id="mode-switch" class="flex items-center gap-2 text-sm font-medium">
-                <span id="mode-label">โหมดนำเสนอ</span>
-                <button id="mode-toggle-btn" class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            <div id="mode-switch" class="flex items-center gap-3 text-sm font-semibold">
+                <span id="mode-label" class="text-slate-600">โหมดนำเสนอ</span>
+                <button id="mode-toggle-btn" class="relative inline-flex items-center h-7 rounded-full w-12 transition-all duration-300 bg-slate-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                     <span class="sr-only">Toggle Mode</span>
-                    <span id="mode-toggle-dot" class="inline-block w-4 h-4 transform bg-white rounded-full transition-transform translate-x-1"></span>
+                    <span id="mode-toggle-dot" class="inline-block w-5 h-5 transform bg-white rounded-full transition-transform duration-300 translate-x-1 shadow-sm"></span>
                 </button>
             </div>
             
-            <div class="h-6 w-px bg-gray-300"></div>
+            <div class="h-7 w-px bg-slate-300"></div>
 
             <!-- Contextual Controls -->
             <div id="contextual-controls" class="flex items-center gap-2">
@@ -325,7 +375,7 @@
             <div class="h-6 w-px bg-gray-300"></div>
 
             <!-- Main Actions -->
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-3">
                 <button id="btn-export-image" class="main-btn-secondary"><svg class="mr-2" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>ส่งออกเป็นภาพ</button>
                 <button id="btn-add-task" class="main-btn-primary"><svg class="mr-2" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>เพิ่ม Task</button>
             </div>
@@ -337,18 +387,19 @@
         <!-- Gantt View Container -->
         <div id="gantt-view" class="flex-grow flex overflow-hidden">
             <!-- Task Panel -->
-            <div id="task-panel" class="bg-[var(--panel-bg)] flex flex-col w-1/3 overflow-hidden">
+            <div id="task-panel" class="bg-white flex flex-col w-1/3 overflow-hidden border-r border-slate-200">
                 <!-- Task Grid Header -->
-                <div id="task-grid-header" class="grid grid-cols-12 border-b-2 border-[var(--border-color)] text-xs font-semibold text-[var(--text-secondary)] flex-shrink-0 bg-white z-10">
+                <div id="task-grid-header" class="grid grid-cols-12 border-b-2 border-slate-200 text-xs font-semibold text-slate-600 flex-shrink-0 bg-gradient-to-b from-slate-50 to-white z-10">
                     <!-- Content generated by JS -->
+                </div>
                 </div>
                 <div id="task-grid-container" class="flex-grow overflow-auto relative">
                     <!-- Task Grid Body -->
                     <div id="task-grid-body"></div>
                 </div>
                 <!-- Add New Task Input -->
-                <div class="p-2 border-t border-[var(--border-color)] flex-shrink-0">
-                    <input type="text" id="new-task-input" placeholder="+ เพิ่ม Task ใหม่แล้วกด Enter..." class="w-full text-sm px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] transition">
+                <div class="p-3 border-t border-slate-200 flex-shrink-0 bg-gradient-to-b from-white to-slate-50">
+                    <input type="text" id="new-task-input" placeholder="+ เพิ่ม Task ใหม่แล้วกด Enter..." class="w-full text-sm px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
                 </div>
             </div>
             
@@ -356,9 +407,9 @@
             <div id="panel-resizer" class="panel-resizer"></div>
 
             <!-- Gantt Panel -->
-            <div id="gantt-panel" class="flex-grow bg-[var(--panel-bg)] flex flex-col overflow-hidden">
+            <div id="gantt-panel" class="flex-grow bg-white flex flex-col overflow-hidden border-l border-slate-200">
                 <!-- Gantt Header -->
-                <div id="gantt-header" class="flex-shrink-0 border-b-2 border-[var(--border-color)] bg-gray-50/50 relative overflow-hidden"></div>
+                <div id="gantt-header" class="flex-shrink-0 border-b-2 border-slate-200 bg-gradient-to-b from-slate-100 to-white relative overflow-hidden"></div>
                 <!-- Gantt Chart -->
                 <div id="gantt-chart-container" class="flex-grow overflow-auto relative">
                     <div id="gantt-grid" class="absolute top-0 left-0 h-full z-0"></div>
@@ -369,22 +420,22 @@
         </div>
         
         <!-- Calendar View Container -->
-        <div id="calendar-view" class="hidden flex-grow flex flex-col p-4">
+        <div id="calendar-view" class="hidden flex-grow flex flex-col p-6 bg-gradient-to-br from-white to-slate-50">
             <!-- Calendar Header -->
-            <div id="calendar-header" class="flex items-center justify-between mb-4 px-2">
+            <div id="calendar-header" class="flex items-center justify-between mb-6 px-4">
                 <div class="flex items-center gap-4">
-                    <button id="calendar-prev-btn" class="p-2 rounded-full hover:bg-gray-100"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
-                    <button id="calendar-next-btn" class="p-2 rounded-full hover:bg-gray-100"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
-                    <button id="calendar-today-btn" class="text-sm font-semibold px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">วันนี้</button>
+                    <button id="calendar-prev-btn" class="p-3 rounded-lg hover:bg-indigo-100 transition-colors text-indigo-600"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+                    <button id="calendar-next-btn" class="p-3 rounded-lg hover:bg-indigo-100 transition-colors text-indigo-600"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+                    <button id="calendar-today-btn" class="text-sm font-bold px-5 py-2.5 border-2 border-indigo-600 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-all">วันนี้</button>
                 </div>
-                <h2 id="calendar-month-year" class="text-xl font-bold"></h2>
+                <h2 id="calendar-month-year" class="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-indigo-400 bg-clip-text text-transparent"></h2>
             </div>
             <!-- Calendar Grid -->
             <div class="flex-grow flex flex-col">
-                <div id="calendar-days-header" class="grid grid-cols-7 text-center font-semibold text-sm text-gray-500 py-2">
+                <div id="calendar-days-header" class="grid grid-cols-7 text-center font-semibold text-sm text-indigo-600 py-4 bg-gradient-to-r from-indigo-50 to-white rounded-t-lg">
                     <!-- Day names generated by JS -->
                 </div>
-                <div id="calendar-grid-container" class="flex-grow grid grid-cols-7 grid-rows-6 gap-px bg-gray-200 border border-gray-200 rounded-lg overflow-hidden relative">
+                <div id="calendar-grid-container" class="flex-grow grid grid-cols-7 grid-rows-6 gap-1 bg-white border-2 border-indigo-200 rounded-b-lg overflow-hidden shadow-lg">
                     <!-- Days and tasks will be generated by JS -->
                 </div>
             </div>
@@ -393,11 +444,11 @@
     </main>
     
     <!-- Task Edit Modal -->
-    <div id="edit-task-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col animate-fade-in-down">
-            <div class="flex justify-between items-center p-4 border-b">
-                <h2 class="text-xl font-bold text-gray-800">แก้ไข Task</h2>
-                <button id="close-modal-btn" class="text-gray-400 hover:text-gray-600 transition">
+    <div id="edit-task-modal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col animate-fade-in-down border border-slate-200">
+            <div class="flex justify-between items-center p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
+                <h2 class="text-2xl font-bold text-slate-900">แก้ไข Task</h2>
+                <button id="close-modal-btn" class="text-slate-400 hover:text-slate-600 transition-colors p-1.5 hover:bg-slate-100 rounded-lg">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
             </div>
@@ -497,35 +548,35 @@
                     </div>
                 </div>
             </form>
-            <div class="flex justify-end gap-3 p-4 bg-gray-50 border-t">
-                <button type="button" id="delete-task-btn" class="px-4 py-2 bg-red-600 text-white font-semibold rounded-md hover:bg-red-700 transition shadow-sm">ลบ Task</button>
-                <button type="submit" form="edit-task-form" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition shadow-sm">บันทึก</button>
+            <div class="flex justify-end gap-3 p-6 bg-gradient-to-r from-slate-50 to-white border-t border-slate-200">
+                <button type="button" id="delete-task-btn" class="px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition-colors shadow-sm">ลบ Task</button>
+                <button type="submit" form="edit-task-form" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">บันทึก</button>
             </div>
         </div>
     </div>
     
     <!-- Export Options Modal -->
-    <div id="export-options-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6 text-center animate-fade-in-down">
-            <h3 class="text-lg font-medium mb-4">เลือกรูปแบบการส่งออก</h3>
+    <div id="export-options-modal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-8 text-center animate-fade-in-down border border-slate-200">
+            <h3 class="text-xl font-bold text-slate-900 mb-6">เลือกรูปแบบการส่งออก</h3>
             <div class="space-y-3">
-                <button id="btn-export-current-view" class="w-full px-4 py-2 bg-white text-gray-700 rounded-md border border-gray-300 hover:bg-gray-50 transition">
+                <button id="btn-export-current-view" class="w-full px-4 py-3 bg-white text-indigo-600 rounded-lg border-2 border-indigo-200 hover:bg-indigo-50 transition-all font-semibold">
                     มุมมองปัจจุบัน (Current View)
                 </button>
-                <button id="btn-export-full-project" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                <button id="btn-export-full-project" class="w-full px-4 py-3 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white rounded-lg hover:shadow-lg transition-all font-semibold">
                     ทั้งโครงการ (Widescreen)
                 </button>
             </div>
-             <button id="close-export-modal-btn" class="mt-4 text-sm text-gray-500 hover:text-gray-700">ยกเลิก</button>
+             <button id="close-export-modal-btn" class="mt-6 text-sm text-slate-500 hover:text-slate-700 transition-colors">ยกเลิก</button>
         </div>
     </div>
 
     <!-- Custom Notification/Alert Modal -->
-    <div id="notification-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6 text-center">
-            <h3 id="notification-title" class="text-lg font-medium mb-2"></h3>
-            <p id="notification-message" class="text-sm text-gray-600 mb-4"></p>
-            <button id="notification-ok-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">ตกลง</button>
+    <div id="notification-modal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-8 text-center border border-slate-200">
+            <h3 id="notification-title" class="text-xl font-bold text-slate-900 mb-3"></h3>
+            <p id="notification-message" class="text-sm text-slate-600 mb-6"></p>
+            <button id="notification-ok-btn" class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-semibold">ตกลง</button>
         </div>
     </div>
     
@@ -1304,13 +1355,13 @@
             const toggleBtn = document.getElementById('mode-toggle-btn');
             const modeLabel = document.getElementById('mode-label');
             if (state.viewMode === 'update') {
-                toggleBtn.classList.add('bg-blue-600');
-                toggleBtn.classList.remove('bg-gray-200');
-                toggleDot.style.transform = 'translateX(20px)';
+                toggleBtn.classList.add('bg-indigo-600');
+                toggleBtn.classList.remove('bg-slate-300');
+                toggleDot.style.transform = 'translateX(22px)';
                 modeLabel.textContent = 'โหมดอัปเดต';
             } else {
-                toggleBtn.classList.remove('bg-blue-600');
-                toggleBtn.classList.add('bg-gray-200');
+                toggleBtn.classList.remove('bg-indigo-600');
+                toggleBtn.classList.add('bg-slate-300');
                 toggleDot.style.transform = 'translateX(4px)';
                 modeLabel.textContent = 'โหมดนำเสนอ';
             }
@@ -2260,11 +2311,19 @@
         const init = () => {
             const style = document.createElement('style');
             style.textContent = `
-                .control-btn { @apply p-2 rounded-lg bg-white text-gray-500 hover:bg-gray-50 transition-colors; } 
-                .control-btn.active, .dropdown-item.active { @apply bg-blue-100 text-blue-600; }
-                .main-btn-primary { @apply flex items-center bg-[var(--primary-color)] text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-[var(--primary-hover)] transition-transform transform hover:scale-105; }
-                .main-btn-secondary { @apply flex items-center bg-white text-gray-700 font-bold py-2 px-4 rounded-lg border border-gray-300 shadow-sm hover:bg-gray-50 transition-transform transform hover:scale-105; }
-                .animate-fade-in-down { animation: fadeInDown 0.3s ease-out forwards; } @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }`;
+                .control-btn { 
+                    @apply p-2.5 rounded-lg bg-white text-slate-600 hover:bg-slate-100 hover:text-indigo-600 transition-all duration-200 border border-slate-200 hover:border-indigo-300; 
+                } 
+                .control-btn:active { @apply scale-95; }
+                .control-btn.active, .dropdown-item.active { @apply bg-indigo-100 text-indigo-700 border-indigo-300; }
+                .main-btn-primary { 
+                    @apply flex items-center bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-bold py-2.5 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 hover:from-indigo-700 hover:to-indigo-600 active:scale-95; 
+                }
+                .main-btn-secondary { 
+                    @apply flex items-center bg-white text-slate-700 font-bold py-2.5 px-5 rounded-lg border-2 border-slate-200 shadow-sm hover:bg-slate-50 hover:border-indigo-300 hover:text-indigo-600 transition-all duration-200 transform hover:scale-105 active:scale-95; 
+                }
+                .animate-fade-in-down { animation: fadeInDown 0.4s ease-out forwards; } 
+                @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }`;
             document.head.append(style);
             loadData();
             reevaluateAllAutoTasks();
