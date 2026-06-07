@@ -202,10 +202,10 @@
         }
         .th-cell:last-child { border-right: none; }
         #task-body-wrap { flex: 1; overflow: auto; position: relative; width: 100%; }
-        #task-body { min-width: max-content; width: 100%; }
+        #task-body { width: max-content; min-width: 100%; }
 
         .task-row {
-            display: flex; align-items: center; min-width: 100%;
+            display: flex; align-items: center; width: max-content; min-width: 100%;
             height: var(--row-h);
             border-bottom: 1px solid var(--border-dark);
             cursor: pointer; transition: background 0.15s;
@@ -223,7 +223,7 @@
             white-space: nowrap; flex-shrink: 0;
         }
         .td-cell:last-child { border-right: none; }
-        .td-cell.name-cell { flex: 1; min-width: 0; }
+        .td-cell.name-cell { flex-shrink: 0; }
         .task-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
         /* Collapse icon */
@@ -262,7 +262,7 @@
         .gh-day-cell.sunday { background: rgba(255,83,112,0.06); color: rgba(255,83,112,0.5); }
         .gh-day-cell.holiday { background: rgba(255,83,112,0.10); color: rgba(255,83,112,0.7); }
         .gh-day-cell.today-col { background: rgba(108,99,255,0.12); color: var(--accent2); font-weight: 700; }
-        .gh-day-cell.saturday { background: rgba(255,184,77,0.05); color: rgba(255,184,77,0.5); }
+        .gh-day-cell.saturday { background: rgba(100,116,139,0.04); font-weight: 700; }
 
         #gantt-scroll { flex: 1; overflow: auto; position: relative; }
         #gantt-canvas { position: relative; }
@@ -284,7 +284,7 @@
         .day-col.sunday { background: rgba(100,116,139,0.05); }
         .day-col.holiday { background: rgba(100,116,139,0.08); }
         .day-col.today-col { background: rgba(108,99,255,0.08); }
-        .day-col.saturday { background: rgba(100,116,139,0.03); }
+        .day-col.saturday { background: rgba(100,116,139,0.02); }
 
         /* Task bars */
         .gbar {
@@ -1074,7 +1074,7 @@ const daysBetween = (a, b) => {
 const isWorkingDay = d => {
     const day = d.getDay(); const ds = fmtDate(d);
     if (day === 0 && !state.workOnSundays) return false;
-    if (day === 6) return false; // Saturday always off
+    // Saturday is a normal working day by default
     if (state.holidays[ds] && !state.workOnHolidays) return false;
     return true;
 };
@@ -1596,7 +1596,7 @@ const buildCols = () => {
     }
     const cols=[];
     cols.push({key:'id',label:'ID',style:'width:50px;flex-shrink:0;',show:state.colVisible.id});
-    cols.push({key:'name',label:'Task Name',style:`flex:1;min-width:${maxNameWidth}px;`,show:true});
+    cols.push({key:'name',label:'Task Name',style:`width:${maxNameWidth}px;flex-shrink:0;`,show:true});
     cols.push({key:'dur',label:'Duration (Days)',style:'width:130px;flex-shrink:0;',show:state.colVisible.dur});
     cols.push({key:'start',label:'Start Date',style:'width:110px;flex-shrink:0;',show:state.colVisible.start});
     cols.push({key:'end',label:'End Date',style:'width:110px;flex-shrink:0;',show:state.colVisible.end});
