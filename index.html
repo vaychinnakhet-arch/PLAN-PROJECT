@@ -230,6 +230,9 @@
             display: inline-flex; border-radius: 3px; transition: all 0.2s; flex-shrink: 0;
         }
         .collapse-btn:hover { color: var(--accent2); background: var(--bg-hover); }
+        .add-subtask-btn { width: 22px; height: 22px; border-radius: 4px; border: none; background: transparent; color: var(--text-muted); display: none; align-items: center; justify-content: center; margin-left: auto; margin-right: 4px; cursor: pointer; transition: all 0.1s; flex-shrink: 0; }
+        .add-subtask-btn:hover { background: var(--bg-deep); color: var(--accent); }
+        .task-row:hover .add-subtask-btn { display: flex; }
         .collapse-icon { transition: transform 0.2s; }
         .collapsed .collapse-icon { transform: rotate(-90deg); }
 
@@ -637,6 +640,27 @@
 </head>
 <body>
 
+<!-- Cloud Sync Modal -->
+<div class="modal" id="cloud-modal">
+    <div class="modal-content" style="max-width:500px;">
+        <div class="modal-header">
+            <h3>☁️ ระบบซิงค์ข้อมูล (Cloud Sync)</h3>
+            <button class="modal-close" onclick="document.getElementById('cloud-modal').classList.remove('open')">×</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">เชื่อมต่อโปรเจคทั้งหมดกับ Google Sheets (เพื่อนำไปใช้ต่อใน AppSheet หรือสำรองข้อมูล)</p>
+            <div class="form-group">
+                <label>Google Apps Script Web App URL</label>
+                <input type="text" id="cloud-url" placeholder="https://script.google.com/macros/s/.../exec">
+            </div>
+            <div style="display:flex; gap:12px; margin-top:20px;">
+                <button class="btn primary" id="btn-cloud-save" style="flex:1;">⬆️ อัปโหลดขึ้น Cloud</button>
+                <button class="btn" id="btn-cloud-load" style="flex:1; background:var(--bg-deep); color:var(--text-primary); border: 1px solid var(--border);">⬇️ ดาวน์โหลดกลับมา</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ═══════════════════ HEADER ══════════════════════ -->
 <header id="app-header">
     <div class="logo-wrap">
@@ -648,7 +672,13 @@
         </div>
     </div>
 
-    <input type="text" id="project-name-input" value="โครงการก่อสร้าง ระยะที่ 1">
+    <div class="dropdown" id="dd-project">
+        <button class="hbtn dropdown-toggle" id="btn-current-project" style="font-weight: 700; font-size: 15px; color: var(--text-primary); max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 12px; height: 36px; display: flex; align-items: center; border: 1px solid transparent;">
+            <!-- JS renders name -->
+        </button>
+        <div class="dropdown-menu" id="menu-project-list" style="width: 280px; max-height: 400px; overflow-y: auto;">
+        </div>
+    </div>
 
     <div class="header-sep"></div>
 
@@ -726,6 +756,8 @@
             ส่งออก
         </button>
         <div class="dropdown-menu">
+            <button class="dd-item" id="btn-sync-cloud" style="color:var(--accent);">☁️ ซิงค์ Cloud (AppSheet)</button>
+            <div class="dd-sep"></div>
             <button class="dd-item" id="btn-save">บันทึก JSON</button>
             <button class="dd-item" id="btn-load">โหลด JSON</button>
             <div class="dd-sep"></div>
@@ -772,8 +804,9 @@
                 <div id="task-body-wrap">
                     <div id="task-body"></div>
                 </div>
-                <div id="task-add-bar">
-                    <input type="text" id="new-task-input" placeholder="+ พิมพ์ชื่องานใหม่ แล้วกด Enter…">
+                <div id="task-add-bar" style="display:flex; gap:8px;">
+                    <input type="text" id="new-task-input" placeholder="+ พิมพ์ชื่องานใหม่..." style="flex:1;">
+                    <button id="btn-add-main-task" style="padding:0 14px; background:var(--accent); color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px; transition:0.2s;">+ เพิ่มงานหลัก</button>
                 </div>
             </div>
 
@@ -1218,13 +1251,127 @@ const toast = (msg, type='info') => {
     setTimeout(()=>{el.style.opacity='0';el.style.transform='translateX(40px)';el.style.transition='all 0.3s';setTimeout(()=>el.remove(),300);},3000);
 };
 
-// ── PERSIST ───────────────────────────────────────────
-const saveLocal = () => {
+// ── PERSIST & MULTI-PROJECT ────────────────────────────────
+let currentProjectId = 'default';
+
+const getProjectsList = () => {
+    const raw = localStorage.getItem('planflow_projects');
+    if(raw) { try { return JSON.parse(raw); } catch(e){} }
+    return [];
+};
+
+const saveProjectsList = (list) => {
+    localStorage.setItem('planflow_projects', JSON.stringify(list));
+};
+
+const migrateIfNeeded = () => {
+    let list = getProjectsList();
+    if(list.length === 0) {
+        const legacy = localStorage.getItem('planflow_v2');
+        if(legacy) {
+            localStorage.setItem('planflow_proj_default', legacy);
+            let legacyData = {};
+            try { legacyData = JSON.parse(legacy); } catch(e){}
+            list.push({ id: 'default', name: legacyData.projectName || 'โครงการแรกของฉัน', updated: Date.now() });
+            saveProjectsList(list);
+            currentProjectId = 'default';
+        } else {
+            const newId = 'proj_' + Date.now();
+            list.push({ id: newId, name: 'โครงการใหม่', updated: Date.now() });
+            saveProjectsList(list);
+            currentProjectId = newId;
+        }
+    } else {
+        currentProjectId = localStorage.getItem('planflow_current_proj') || list[0].id;
+        if (!list.some(p => p.id === currentProjectId)) {
+            currentProjectId = list[0].id;
+        }
+    }
+    localStorage.setItem('planflow_current_proj', currentProjectId);
+};
+
+window.switchProject = (id) => {
+    currentProjectId = id;
+    localStorage.setItem('planflow_current_proj', id);
+    document.querySelectorAll('.dropdown.open').forEach(d=>d.classList.remove('open'));
+    if(!loadLocal()) { state.tasks=[]; state.projectName='โครงการใหม่'; }
+    renderProjectMenu();
+    updateParentDates();
+    render();
+};
+
+window.createProject = () => {
+    const name = prompt('ตั้งชื่อโปรเจคใหม่:', 'โครงการใหม่');
+    if(!name) return;
+    const newId = 'proj_' + Date.now();
+    const list = getProjectsList();
+    list.push({ id: newId, name, updated: Date.now() });
+    saveProjectsList(list);
+    
+    state.projectName = name;
+    state.tasks = [];
+    state.holidays = {};
+    saveLocal(newId);
+    window.switchProject(newId);
+};
+
+window.renameProject = () => {
+    const name = prompt('ตั้งชื่อโปรเจคใหม่:', state.projectName);
+    if(!name || name === state.projectName) return;
+    state.projectName = name;
+    saveLocal();
+    renderProjectMenu();
+};
+
+window.deleteProject = () => {
+    const list = getProjectsList();
+    if(list.length <= 1) {
+        alert('ไม่สามารถลบโปรเจคสุดท้ายได้ กรุณาสร้างโปรเจคใหม่ก่อนลบโปรเจคนี้');
+        return;
+    }
+    if(!confirm(`คุณต้องการลบโปรเจค "${state.projectName}" ทิ้งอย่างถาวร ใช่หรือไม่?`)) return;
+    const newList = list.filter(p => p.id !== currentProjectId);
+    saveProjectsList(newList);
+    localStorage.removeItem(`planflow_proj_${currentProjectId}`);
+    window.switchProject(newList[0].id);
+};
+
+const renderProjectMenu = () => {
+    const btn = document.getElementById('btn-current-project');
+    if(btn) btn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="margin-right: 6px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        ${state.projectName || 'ไม่มีชื่อโปรเจค'}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="margin-left: 6px; flex-shrink:0;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    `;
+    const list = getProjectsList();
+    let html = '';
+    list.sort((a,b)=>b.updated - a.updated).forEach(p => {
+        const isCur = p.id === currentProjectId;
+        html += `<button class="dd-item" style="${isCur?'background:var(--bg-hover);font-weight:bold;':''}" onclick="switchProject('${p.id}')">
+            ${isCur ? '✓ ' : ''}${p.name}
+        </button>`;
+    });
+    html += `<div class="dd-sep"></div>`;
+    html += `<button class="dd-item" style="color:var(--accent);" onclick="createProject()">+ สร้างโปรเจคใหม่</button>`;
+    html += `<button class="dd-item" onclick="renameProject()">✏️ เปลี่ยนชื่อโปรเจคนี้</button>`;
+    html += `<button class="dd-item" style="color:var(--status-late);" onclick="deleteProject()">🗑️ ลบโปรเจคนี้</button>`;
+    const menu = document.getElementById('menu-project-list');
+    if(menu) menu.innerHTML = html;
+};
+
+const saveLocal = (forceId = currentProjectId) => {
     const d={projectName:state.projectName,tasks:state.tasks.map(t=>({...t,start:fmtDate(t.start),end:fmtDate(t.end),actualStart:fmtDate(t.actualStart),actualEnd:fmtDate(t.actualEnd),baselineStart:fmtDate(t.baselineStart),baselineEnd:fmtDate(t.baselineEnd)})),workOnSundays:state.workOnSundays,workOnHolidays:state.workOnHolidays,holidays:state.holidays};
-    localStorage.setItem('planflow_v2',JSON.stringify(d));
+    localStorage.setItem(`planflow_proj_${forceId}`,JSON.stringify(d));
+    let list = getProjectsList();
+    const p = list.find(x => x.id === forceId);
+    if(p) {
+        p.name = state.projectName;
+        p.updated = Date.now();
+        saveProjectsList(list);
+    }
 };
 const loadLocal = () => {
-    const raw=localStorage.getItem('planflow_v2'); if(!raw) return false;
+    const raw=localStorage.getItem(`planflow_proj_${currentProjectId}`); if(!raw) return false;
     try{
         const d=JSON.parse(raw);
         state.projectName=d.projectName||state.projectName;
@@ -1235,7 +1382,6 @@ const loadLocal = () => {
             const s=parseDate(t.start),e=parseDate(t.end);
             return{...t,start:s,end:e,order:t.order??i,duration:t.duration||workDaysDuration(s,e),actualStart:parseDate(t.actualStart),actualEnd:parseDate(t.actualEnd),baselineStart:parseDate(t.baselineStart),baselineEnd:parseDate(t.baselineEnd),schedulingMode:t.schedulingMode||'manual'};
         });
-        document.getElementById('project-name-input').value=state.projectName;
         return true;
     }catch(e){console.error(e);return false;}
 };
@@ -1374,7 +1520,10 @@ const renderTaskPanel = (visible, ROW) => {
                     ${isParent?`<button class="collapse-btn${t.isCollapsed?' collapsed':''}" data-collapse="${t.id}">
                         <svg class="collapse-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
                     </button>`:'<span style="width:20px;flex-shrink:0;display:inline-block;"></span>'}
-                    <span class="task-name-text" style="font-weight:${isParent?'800':'500'};font-size:${isParent?'14px':'13px'};color:${isParent?'var(--text-primary)':'var(--text-secondary)'};flex:1;">${t.name}</span>
+                    <span class="task-name-text" style="font-weight:${isParent?'800':'500'};font-size:${isParent?'14px':'13px'};color:${isParent?'var(--text-primary)':'var(--text-secondary)'};">${t.name}</span>
+                    <button class="add-subtask-btn" data-add-sub="${t.id}" title="เพิ่มงานย่อย">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
                     ${state.mode==='update'?`<span style="margin-left:4px;">${statusMap[status]||''}</span>`:''}
                 </div>`;
                 if(c.key==='id') return `<div class="td-cell" style="${c.style}"><span style="color:var(--text-primary);font-size:${isParent?'13px':'11px'};font-weight:${isParent?'800':'600'};">${t.wbs||t.id}</span></div>`;
@@ -1466,7 +1615,7 @@ const renderGanttChart = (visible, totalDays, totalW, totalH, ROW, dw) => {
         else if(isHol&&!state.workOnHolidays) cls+=' holiday';
         else if(isSun&&!state.workOnSundays) cls+=' sunday';
         else if(isSat) cls+=' saturday';
-        dayColsG+=`<div class="${cls}" style="left:${i*dw}px;width:${dw}px;height:${totalH}px;"></div>`;
+        dayColsG+=`<div class="${cls}" style="left:${i*dw}px;width:${dw}px;height:100%;"></div>`;
     }
     document.getElementById('gantt-day-cols').innerHTML=dayColsG;
 
@@ -1516,12 +1665,16 @@ const renderGanttChart = (visible, totalDays, totalW, totalH, ROW, dw) => {
     if(today>=state.ganttStart&&today<=state.ganttEnd){
         todayLine.style.display='block';
         todayLine.style.left=`${todayLeft+dw/2}px`;
-        todayLine.style.height=`${totalH}px`;
+        todayLine.style.height=`100%`;
     } else {todayLine.style.display='none';}
+
+    const panelH = document.getElementById('gantt-panel').offsetHeight;
+    const headerH = document.getElementById('gantt-header').offsetHeight || 54;
+    const canvasH = Math.max(totalH, panelH - headerH);
 
     document.getElementById('gantt-bars').innerHTML=barsHtml;
     document.getElementById('gantt-canvas').style.width=`${totalW}px`;
-    document.getElementById('gantt-canvas').style.height=`${totalH}px`;
+    document.getElementById('gantt-canvas').style.height=`${canvasH}px`;
 
     // ── Dependencies ──
     renderDeps(visible, ROW, dw);
@@ -1858,18 +2011,19 @@ const syncModalDates = (changed) => {
 // ── INIT & EVENTS ─────────────────────────────────────
 const init = () => {
     // Load data
+    migrateIfNeeded();
     if(!loadLocal()){
         state.tasks=getSampleTasks();
         reevalAutoTasks();
         updateParentDates();
     }
+    renderProjectMenu();
     setupScrollSync();
     setupResizer();
     setupDragDrop();
     setupGanttBarClick();
 
     // ─ Header events ─
-    document.getElementById('project-name-input').addEventListener('blur',e=>{state.projectName=e.target.value;saveLocal();});
     document.getElementById('toggle-sun').addEventListener('click',()=>{state.workOnSundays=!state.workOnSundays;reevalAutoTasks();updateParentDates();render();});
     document.getElementById('toggle-hol').addEventListener('click',()=>{state.workOnHolidays=!state.workOnHolidays;reevalAutoTasks();updateParentDates();render();});
     document.getElementById('toggle-mode').addEventListener('click',()=>{state.mode=state.mode==='presentation'?'update':'presentation';render();});
@@ -1880,7 +2034,8 @@ const init = () => {
         const end=addWorkingDays(td,0);
         const topOrder=Math.max(-1,...state.tasks.filter(t=>t.parentId===null).map(t=>t.order||0));
         const newTaskId = nextId();
-        state.tasks.push({id:newTaskId,name:'งานใหม่',start:td,end,duration:1,progress:0,parentId:null,isCollapsed:false,dependencies:'',schedulingMode:'manual',order:topOrder+1,resource:'',color:null,actualStart:null,actualEnd:null,baselineStart:null,baselineEnd:null});
+        const color=COLORS[Math.floor(Math.random()*COLORS.length)];
+        state.tasks.push({id:newTaskId,name:'งานใหม่',start:td,end,duration:1,progress:0,parentId:null,isCollapsed:false,dependencies:'',schedulingMode:'manual',order:topOrder+1,resource:'',color:color,actualStart:null,actualEnd:null,baselineStart:null,baselineEnd:null});
         render();
         openModal(newTaskId);
     });
@@ -1919,26 +2074,115 @@ const init = () => {
     document.getElementById('btn-export-excel').addEventListener('click',exportExcel);
     document.getElementById('btn-export-img').addEventListener('click',exportImage);
 
+    // Cloud Sync
+    const storedUrl = localStorage.getItem('planflow_cloud_url') || '';
+    document.getElementById('cloud-url').value = storedUrl;
+    
+    document.getElementById('btn-sync-cloud').addEventListener('click', () => {
+        document.getElementById('cloud-modal').classList.add('open');
+    });
+    
+    document.getElementById('btn-cloud-save').addEventListener('click', async () => {
+        const url = document.getElementById('cloud-url').value.trim();
+        if(!url) return alert('กรุณาระบุ Web App URL');
+        localStorage.setItem('planflow_cloud_url', url);
+        
+        saveLocal(); // Ensure current state is saved
+        const allData = {};
+        const list = getProjectsList();
+        allData.projects = list;
+        list.forEach(p => {
+            allData[`proj_${p.id}`] = JSON.parse(localStorage.getItem(`planflow_proj_${p.id}`) || '{}');
+        });
+        
+        try {
+            document.getElementById('btn-cloud-save').innerText = 'กำลังอัปโหลด...';
+            const res = await fetch(url, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'save', payload: allData })
+            });
+            // no-cors doesn't return readable response, just assume success if no throw
+            toast('ส่งข้อมูลขึ้น Cloud สำเร็จ (no-cors)', 'success');
+            document.getElementById('cloud-modal').classList.remove('open');
+        } catch(e) {
+            alert('เกิดข้อผิดพลาดในการอัปโหลด: ' + e.message);
+        } finally {
+            document.getElementById('btn-cloud-save').innerText = '⬆️ อัปโหลดขึ้น Cloud';
+        }
+    });
+
+    document.getElementById('btn-cloud-load').addEventListener('click', async () => {
+        const url = document.getElementById('cloud-url').value.trim();
+        if(!url) return alert('กรุณาระบุ Web App URL');
+        localStorage.setItem('planflow_cloud_url', url);
+        
+        try {
+            document.getElementById('btn-cloud-load').innerText = 'กำลังดาวน์โหลด...';
+            const res = await fetch(url + '?action=load');
+            const data = await res.json();
+            if(data && data.projects) {
+                saveProjectsList(data.projects);
+                data.projects.forEach(p => {
+                    localStorage.setItem(`planflow_proj_${p.id}`, JSON.stringify(data[`proj_${p.id}`]));
+                });
+                toast('ดาวน์โหลดข้อมูลจาก Cloud สำเร็จ', 'success');
+                document.getElementById('cloud-modal').classList.remove('open');
+                switchProject(currentProjectId);
+            } else {
+                alert('ไม่พบข้อมูลโปรเจคใน Cloud');
+            }
+        } catch(e) {
+            alert('เกิดข้อผิดพลาดในการดาวน์โหลด: ' + e.message);
+        } finally {
+            document.getElementById('btn-cloud-load').innerText = '⬇️ ดาวน์โหลดกลับมา';
+        }
+    });
+
     // Column toggles
     Object.keys(state.colVisible).forEach(k=>{
         const el=document.getElementById('col-'+k);
         if(el) el.addEventListener('click',()=>{state.colVisible[k]=!state.colVisible[k];render();});
     });
 
-    // Add task (new input)
-    document.getElementById('new-task-input').addEventListener('keydown',e=>{
-        if(e.key!=='Enter'||!e.target.value.trim()) return;
-        const name=e.target.value.trim(); e.target.value='';
+    // Add task (new input or button)
+    const addMainTask = () => {
+        const input = document.getElementById('new-task-input');
+        if(!input.value.trim()) return;
+        const name=input.value.trim(); input.value='';
         const td=new Date(); td.setHours(0,0,0,0);
         const dur=1; const end=addWorkingDays(td,0);
         const topOrder=Math.max(-1,...state.tasks.filter(t=>t.parentId===null).map(t=>t.order||0));
-        state.tasks.push({id:nextId(),name,start:td,end,duration:dur,progress:0,parentId:null,isCollapsed:false,dependencies:'',schedulingMode:'manual',order:topOrder+1,resource:'',color:null,actualStart:null,actualEnd:null,baselineStart:null,baselineEnd:null});
+        const color=COLORS[Math.floor(Math.random()*COLORS.length)];
+        state.tasks.push({id:nextId(),name,start:td,end,duration:dur,progress:0,parentId:null,isCollapsed:false,dependencies:'',schedulingMode:'manual',order:topOrder+1,resource:'',color:color,actualStart:null,actualEnd:null,baselineStart:null,baselineEnd:null});
         render();
         toast(`เพิ่มงาน "${name}" เรียบร้อย`,'success');
+    };
+    document.getElementById('new-task-input').addEventListener('keydown',e=>{
+        if(e.key==='Enter') addMainTask();
     });
+    document.getElementById('btn-add-main-task').addEventListener('click', addMainTask);
 
     // Task body click (collapse + open modal)
     document.getElementById('task-body').addEventListener('click',e=>{
+        const addSubBtn = e.target.closest('[data-add-sub]');
+        if(addSubBtn){
+            e.stopPropagation();
+            const parentId = parseInt(addSubBtn.dataset.addSub);
+            const td=new Date(); td.setHours(0,0,0,0);
+            const dur=1; const end=addWorkingDays(td,0);
+            const color=COLORS[Math.floor(Math.random()*COLORS.length)];
+            const order=Math.max(-1,...state.tasks.filter(t=>t.parentId===parentId).map(t=>t.order||0));
+            const newId = nextId();
+            state.tasks.push({id:newId,name:'งานย่อยใหม่',start:td,end,duration:dur,progress:0,parentId:parentId,isCollapsed:false,dependencies:'',schedulingMode:'manual',order:order+1,resource:'',color:color,actualStart:null,actualEnd:null,baselineStart:null,baselineEnd:null});
+            const pTask = state.tasks.find(x=>x.id===parentId);
+            if(pTask) pTask.isCollapsed = false;
+            render();
+            state.selectedTaskId = newId;
+            openModal(newId);
+            return;
+        }
         const cb=e.target.closest('[data-collapse]');
         if(cb){e.stopPropagation();const id=parseInt(cb.dataset.collapse);const t=state.tasks.find(x=>x.id===id);if(t){t.isCollapsed=!t.isCollapsed;render();}return;}
         const row=e.target.closest('.task-row');
