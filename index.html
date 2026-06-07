@@ -1621,13 +1621,27 @@ const setupScrollSync = () => {
     const gs=document.getElementById('gantt-scroll');
     const ghw=document.getElementById('gantt-header-wrap');
     let syncing=false;
+    let snapTimeout;
     const sync=(src,targets)=>{
         if(syncing) return; syncing=true;
         targets.forEach(t=>{t.scrollTop=src.scrollTop;if(t===ghw)t.scrollLeft=src.scrollLeft;});
         requestAnimationFrame(()=>syncing=false);
     };
     tbw.addEventListener('scroll',()=>sync(tbw,[gs]));
-    gs.addEventListener('scroll',()=>{sync(gs,[tbw]);ghw.scrollLeft=gs.scrollLeft;});
+    gs.addEventListener('scroll',()=>{
+        sync(gs,[tbw]);
+        ghw.scrollLeft=gs.scrollLeft;
+        clearTimeout(snapTimeout);
+        snapTimeout = setTimeout(() => {
+            const dw = state.dayWidth;
+            if (dw > 0) {
+                const targetLeft = Math.round(gs.scrollLeft / dw) * dw;
+                if (Math.abs(gs.scrollLeft - targetLeft) > 1) {
+                    gs.scrollTo({ left: targetLeft, behavior: 'smooth' });
+                }
+            }
+        }, 150);
+    });
 };
 
 // ── PANEL RESIZER ─────────────────────────────────────
