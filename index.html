@@ -464,7 +464,15 @@
         input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 0 12px var(--accent-glow); }
 
         /* Btns in modal */
-        .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; border: none;        .holiday-name { flex: 1; font-weight: 600; color: var(--text-primary); margin-left: 12px; }
+        .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; border: none; transition: all 0.2s; }
+        .btn-primary { background: linear-gradient(135deg, var(--accent), #5b52e8); color: #fff; box-shadow: 0 4px 12px var(--accent-glow); }
+        .btn-primary:hover { box-shadow: 0 6px 20px var(--accent-glow); transform: translateY(-1px); }
+        .btn-ghost { background: var(--bg-surface); color: var(--text-secondary); border: 1px solid var(--border2); }
+        .btn-ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .btn-danger { background: rgba(255,83,112,0.12); color: var(--accent-rose); border: 1px solid rgba(255,83,112,0.2); }
+        .btn-danger:hover { background: rgba(255,83,112,0.2); }
+
+        .holiday-name { flex: 1; font-weight: 600; color: var(--text-primary); margin-left: 12px; }
         .holiday-del { background: none; border: none; color: var(--accent-rose); cursor: pointer; padding: 4px; border-radius: 4px; }
         .holiday-del:hover { background: rgba(255,83,112,0.1); }
 
@@ -474,13 +482,6 @@
         .ai-msg.bot { background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border); align-self: flex-start; border-bottom-left-radius: 4px; }
         .ai-msg.system { background: rgba(255,83,112,0.1); color: var(--accent-rose); align-self: stretch; text-align: center; font-size: 11px; border-radius: 4px; padding: 4px; }
         .ai-typing { font-size: 12px; color: var(--text-secondary); font-style: italic; align-self: flex-start; padding: 0 8px; }
-    </style>
-        .btn-primary { background: linear-gradient(135deg, var(--accent), #5b52e8); color: #fff; box-shadow: 0 4px 12px var(--accent-glow); }
-        .btn-primary:hover { box-shadow: 0 6px 20px var(--accent-glow); transform: translateY(-1px); }
-        .btn-ghost { background: var(--bg-surface); color: var(--text-secondary); border: 1px solid var(--border2); }
-        .btn-ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
-        .btn-danger { background: rgba(255,83,112,0.12); color: var(--accent-rose); border: 1px solid rgba(255,83,112,0.2); }
-        .btn-danger:hover { background: rgba(255,83,112,0.2); }
 
         /* ─── DROPDOWN MENU ──────────────────────────── */
         .dropdown { position: relative; }
