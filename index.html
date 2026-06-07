@@ -464,7 +464,17 @@
         input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 0 12px var(--accent-glow); }
 
         /* Btns in modal */
-        .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; border: none; transition: all 0.2s; }
+        .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; border: none;        .holiday-name { flex: 1; font-weight: 600; color: var(--text-primary); margin-left: 12px; }
+        .holiday-del { background: none; border: none; color: var(--accent-rose); cursor: pointer; padding: 4px; border-radius: 4px; }
+        .holiday-del:hover { background: rgba(255,83,112,0.1); }
+
+        /* ─── AI CHAT ────────────────────────────────── */
+        .ai-msg { max-width: 85%; padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.4; word-wrap: break-word; }
+        .ai-msg.user { background: var(--accent); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .ai-msg.bot { background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border); align-self: flex-start; border-bottom-left-radius: 4px; }
+        .ai-msg.system { background: rgba(255,83,112,0.1); color: var(--accent-rose); align-self: stretch; text-align: center; font-size: 11px; border-radius: 4px; padding: 4px; }
+        .ai-typing { font-size: 12px; color: var(--text-secondary); font-style: italic; align-self: flex-start; padding: 0 8px; }
+    </style>
         .btn-primary { background: linear-gradient(135deg, var(--accent), #5b52e8); color: #fff; box-shadow: 0 4px 12px var(--accent-glow); }
         .btn-primary:hover { box-shadow: 0 6px 20px var(--accent-glow); transform: translateY(-1px); }
         .btn-ghost { background: var(--bg-surface); color: var(--text-secondary); border: 1px solid var(--border2); }
@@ -668,6 +678,10 @@
     <button class="hbtn" id="btn-goto-today" title="ไปวันนี้">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         วันนี้
+    </button>
+    
+    <button class="hbtn" id="btn-open-ai" style="color:var(--accent);border-color:rgba(108,99,255,0.3);background:rgba(108,99,255,0.05);" title="AI ผู้ช่วย">
+        ✨ AI
     </button>
 
     <div class="dropdown" id="dd-file">
@@ -901,6 +915,35 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-ghost" id="hol-close">ปิด</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════ AI MODAL ═════════════════════ -->
+<div class="modal-overlay" id="ai-modal">
+    <div class="modal-content" style="width:500px;">
+        <div class="modal-header" style="justify-content: space-between;">
+            <h3 class="modal-title">✨ AI ผู้ช่วย (PlanFlow Assistant)</h3>
+            <button class="hbtn" id="btn-ai-settings" title="ตั้งค่า API Key" style="padding:4px;font-size:16px;">⚙️</button>
+        </div>
+        <div class="modal-body" style="padding:16px;">
+            <div id="ai-settings-panel" style="display:none; background:var(--bg-hover); padding:12px; border-radius:8px; margin-bottom:12px; border:1px solid var(--border);">
+                <label class="form-label">OpenAI API Key <span style="font-size:10px;color:var(--text-secondary);">(บันทึกในเบราว์เซอร์เท่านั้น)</span></label>
+                <input type="password" class="form-control" id="ai-api-key" placeholder="sk-...">
+                <button class="btn btn-primary" id="btn-save-ai-key" style="margin-top:8px;width:100%;">บันทึก Key</button>
+            </div>
+            <div id="ai-chat-history" style="height:300px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:8px; background:var(--bg-surface); margin-bottom:12px;">
+                <div style="font-size:12px; color:var(--text-secondary); text-align:center;">เริ่มต้นใช้งาน AI โดยพิมพ์คำสั่งด้านล่าง<br>เช่น "เลื่อนงานทั้งหมดไป 3 วัน" หรือ "แตกงานย่อยให้งานที่ 1"</div>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <input type="text" class="form-control" id="ai-prompt-input" placeholder="สั่ง AI ตรงนี้..." style="flex:1;">
+                <button class="btn btn-primary" id="btn-ai-send" style="padding: 0 16px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" id="ai-close">ปิด</button>
         </div>
     </div>
 </div>
@@ -1945,6 +1988,107 @@ const init = () => {
     document.getElementById('cal-prev').addEventListener('click',()=>{state.calDate.setMonth(state.calDate.getMonth()-1);render();});
     document.getElementById('cal-next').addEventListener('click',()=>{state.calDate.setMonth(state.calDate.getMonth()+1);render();});
     document.getElementById('cal-today').addEventListener('click',()=>{state.calDate=new Date();render();});
+
+    // ── AI ASSISTANT LOGIC ────────────────────────────────
+    const aiModal = document.getElementById('ai-modal');
+    const aiChat = document.getElementById('ai-chat-history');
+    const aiInput = document.getElementById('ai-prompt-input');
+    
+    const savedKey = localStorage.getItem('planflow_openai_key');
+    if (savedKey) document.getElementById('ai-api-key').value = savedKey;
+
+    document.getElementById('btn-open-ai').addEventListener('click', () => aiModal.classList.add('show'));
+    document.getElementById('ai-close').addEventListener('click', () => aiModal.classList.remove('show'));
+    document.getElementById('btn-ai-settings').addEventListener('click', () => {
+        const p = document.getElementById('ai-settings-panel');
+        p.style.display = p.style.display === 'none' ? 'block' : 'none';
+    });
+    document.getElementById('btn-save-ai-key').addEventListener('click', () => {
+        const k = document.getElementById('ai-api-key').value.trim();
+        if(k) { localStorage.setItem('planflow_openai_key', k); toast('บันทึก API Key แล้ว', 'success'); }
+        else { localStorage.removeItem('planflow_openai_key'); toast('ลบ API Key แล้ว', 'info'); }
+        document.getElementById('ai-settings-panel').style.display = 'none';
+    });
+
+    const addAiMsg = (text, type) => {
+        const d = document.createElement('div');
+        d.className = `ai-msg ${type}`;
+        d.textContent = text;
+        aiChat.appendChild(d);
+        aiChat.scrollTop = aiChat.scrollHeight;
+    };
+
+    const processAiRequest = async () => {
+        const prompt = aiInput.value.trim();
+        if (!prompt) return;
+        const apiKey = document.getElementById('ai-api-key').value.trim();
+        if (!apiKey) { toast('กรุณาตั้งค่า API Key ก่อนใช้งาน', 'error'); document.getElementById('ai-settings-panel').style.display='block'; return; }
+        
+        aiInput.value = '';
+        addAiMsg(prompt, 'user');
+        
+        const typing = document.createElement('div');
+        typing.className = 'ai-typing';
+        typing.textContent = 'AI กำลังคิด...';
+        aiChat.appendChild(typing);
+        aiChat.scrollTop = aiChat.scrollHeight;
+
+        try {
+            const systemPrompt = `You are an AI assistant for a project management app. 
+The user wants to modify the project plan. The current tasks are provided as JSON.
+You must return the updated tasks array in a strict JSON format within a markdown code block (\`\`\`json ... \`\`\`).
+Do NOT provide explanations outside the JSON block. ONLY return valid JSON that can be parsed by JSON.parse().
+Each task object has properties: id(string), name(string), type('manual'|'auto'), start(string YYYY-MM-DD), end(string YYYY-MM-DD), duration(number), progress(number 0-100), dependencies(string e.g. "1FS"), resource(string).
+Parent tasks (type='auto') summarize their children. Child tasks have IDs starting with parent ID + "." (e.g., parent "1", children "1.1", "1.2").
+If user asks to add tasks, make sure IDs follow this convention. Keep the language in Thai.`;
+
+            const userContent = `Current Tasks:\n${JSON.stringify(state.tasks, null, 2)}\n\nUser Request: ${prompt}`;
+
+            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({
+                    model: 'gpt-4o-mini',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userContent }
+                    ],
+                    temperature: 0.2
+                })
+            });
+
+            if (!res.ok) throw new Error(`API Error: ${res.status}`);
+            const data = await res.json();
+            const text = data.choices[0].message.content;
+            
+            const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/```\n([\s\S]*?)\n```/);
+            const rawJson = jsonMatch ? jsonMatch[1] : text;
+            
+            try {
+                const newTasks = JSON.parse(rawJson.trim());
+                if (Array.isArray(newTasks)) {
+                    state.tasks = newTasks;
+                    reevalAutoTasks();
+                    updateParentDates();
+                    render();
+                    addAiMsg('อัปเดตแผนงานเรียบร้อยแล้วค่ะ!', 'bot');
+                } else {
+                    throw new Error('Returned JSON is not an array.');
+                }
+            } catch (err) {
+                console.error(err, rawJson);
+                addAiMsg('ขออภัย ไม่สามารถประมวลผลข้อมูล JSON จาก AI ได้', 'system');
+            }
+        } catch (e) {
+            console.error(e);
+            addAiMsg(`เกิดข้อผิดพลาด: ${e.message}`, 'system');
+        } finally {
+            typing.remove();
+        }
+    };
+
+    document.getElementById('btn-ai-send').addEventListener('click', processAiRequest);
+    aiInput.addEventListener('keydown', e => { if(e.key === 'Enter') processAiRequest(); });
 
     // Initial render
     render();
