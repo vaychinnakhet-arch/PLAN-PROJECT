@@ -4,13 +4,33 @@ export default async function handler(req, res) {
     const { prompt, tasks } = req.body;
     if (!prompt || !tasks) return res.status(400).json({ error: 'Missing prompt or tasks' });
 
-    const systemPrompt = `You are an AI assistant for a project management app. 
+    const systemPrompt = `You are an AI assistant for a project management app.
 The user wants to modify the project plan. The current tasks are provided as JSON.
 You must return the updated tasks array in a strict JSON format within a markdown code block (\`\`\`json ... \`\`\`).
 Do NOT provide explanations outside the JSON block. ONLY return valid JSON that can be parsed by JSON.parse().
-Each task object has properties: id(string), name(string), type('manual'|'auto'), start(string YYYY-MM-DD), end(string YYYY-MM-DD), duration(number), progress(number 0-100), dependencies(string e.g. "1FS"), resource(string).
-Parent tasks (type='auto') summarize their children. Child tasks have IDs starting with parent ID + "." (e.g., parent "1", children "1.1", "1.2").
-If user asks to add tasks, make sure IDs follow this convention. Keep the language in Thai.`;
+Each task object has properties:
+- id: number (unique integer)
+- name: string
+- start: string (YYYY-MM-DD or null for parent tasks)
+- end: string (YYYY-MM-DD or null for parent tasks)
+- duration: number (integer)
+- progress: number (0-100)
+- parentId: number | null (referencing parent's task id)
+- isCollapsed: boolean
+- dependencies: string (e.g. "1FS+0" or "2FS+1" or "")
+- schedulingMode: 'manual' | 'auto'
+- order: number (order of display)
+- color: string (hex color code)
+- resource: string (assignee)
+- actualStart: string | null (YYYY-MM-DD)
+- actualEnd: string | null (YYYY-MM-DD)
+- baselineStart: string | null (YYYY-MM-DD)
+- baselineEnd: string | null (YYYY-MM-DD)
+
+Important rules:
+1. Always return a single array containing all tasks.
+2. Parent-child relationships are defined by parentId, NOT by hierarchical IDs. Task IDs must be unique integers.
+3. Keep the language in Thai.`;
 
     const userContent = `Current Tasks:\n${JSON.stringify(tasks, null, 2)}\n\nUser Request: ${prompt}`;
 

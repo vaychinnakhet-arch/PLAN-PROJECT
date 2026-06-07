@@ -2407,7 +2407,25 @@ const init = () => {
             try {
                 const newTasks = JSON.parse(rawJson.trim());
                 if (Array.isArray(newTasks)) {
-                    state.tasks = newTasks;
+                    state.tasks = newTasks.map((t, i) => {
+                        const s = parseDate(t.start);
+                        const e = parseDate(t.end);
+                        return {
+                            ...t,
+                            start: s,
+                            end: e,
+                            duration: parseInt(t.duration) || workDaysDuration(s, e),
+                            parentId: t.parentId ? parseInt(t.parentId) : null,
+                            id: parseInt(t.id) || t.id,
+                            progress: parseInt(t.progress) || 0,
+                            actualStart: parseDate(t.actualStart),
+                            actualEnd: parseDate(t.actualEnd),
+                            baselineStart: parseDate(t.baselineStart),
+                            baselineEnd: parseDate(t.baselineEnd),
+                            schedulingMode: t.schedulingMode || 'manual',
+                            order: t.order ?? i
+                        };
+                    });
                     reevalAutoTasks();
                     updateParentDates();
                     render();
