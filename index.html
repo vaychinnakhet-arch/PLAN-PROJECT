@@ -640,26 +640,7 @@
 </head>
 <body>
 
-<!-- Cloud Sync Modal -->
-<div class="modal" id="cloud-modal">
-    <div class="modal-content" style="max-width:500px;">
-        <div class="modal-header">
-            <h3>☁️ ระบบซิงค์ข้อมูล (Cloud Sync)</h3>
-            <button class="modal-close" onclick="document.getElementById('cloud-modal').classList.remove('open')">×</button>
-        </div>
-        <div class="modal-body">
-            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">เชื่อมต่อโปรเจคทั้งหมดกับ Google Sheets (เพื่อนำไปใช้ต่อใน AppSheet หรือสำรองข้อมูล)</p>
-            <div class="form-group" style="display:none;">
-                <label>Google Apps Script Web App URL</label>
-                <input type="text" id="cloud-url" value="https://script.google.com/macros/s/AKfycbwAV4cUGPxPP3UoI9TS74l8kZaeI3bO7TUeLMYc0VuKslU-sXTBTzVtLGRGmnEmMOc/exec">
-            </div>
-            <div style="display:flex; gap:12px; margin-top:20px;">
-                <button class="btn primary" id="btn-cloud-save" style="flex:1;">⬆️ อัปโหลดขึ้น Cloud</button>
-                <button class="btn" id="btn-cloud-load" style="flex:1; background:var(--bg-deep); color:var(--text-primary); border: 1px solid var(--border);">⬇️ ดาวน์โหลดกลับมา</button>
-            </div>
-        </div>
-    </div>
-</div>
+
 
 <!-- ═══════════════════ HEADER ══════════════════════ -->
 <header id="app-header">
@@ -678,6 +659,11 @@
         </button>
         <div class="dropdown-menu" id="menu-project-list" style="width: 280px; max-height: 400px; overflow-y: auto;">
         </div>
+    </div>
+
+    <div id="cloud-sync-status" style="margin-left: 8px; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+        <div id="sync-dot" style="width:6px; height:6px; border-radius:50%; background:var(--status-done);"></div>
+        <span id="sync-text">อัปเดตล่าสุด</span>
     </div>
 
     <div class="header-sep"></div>
@@ -756,8 +742,6 @@
             ส่งออก
         </button>
         <div class="dropdown-menu">
-            <button class="dd-item" id="btn-sync-cloud" style="color:var(--accent);">☁️ ซิงค์ Cloud (AppSheet)</button>
-            <div class="dd-sep"></div>
             <button class="dd-item" id="btn-save">บันทึก JSON</button>
             <button class="dd-item" id="btn-load">โหลด JSON</button>
             <div class="dd-sep"></div>
@@ -1359,6 +1343,46 @@ const renderProjectMenu = () => {
     if(menu) menu.innerHTML = html;
 };
 
+let syncTimer = null;
+const CLOUD_URL = "https://script.google.com/macros/s/AKfycbwAV4cUGPxPP3UoI9TS74l8kZaeI3bO7TUeLMYc0VuKslU-sXTBTzVtLGRGmnEmMOc/exec";
+
+const triggerAutoSync = () => {
+    const dot = document.getElementById('sync-dot');
+    const text = document.getElementById('sync-text');
+    if(!dot || !text) return;
+    
+    dot.style.background = 'var(--status-progress)';
+    text.innerText = 'รอซิงค์...';
+    
+    if(syncTimer) clearTimeout(syncTimer);
+    syncTimer = setTimeout(async () => {
+        dot.style.background = 'var(--status-progress)';
+        text.innerText = 'กำลังซิงค์...';
+        
+        const allData = {};
+        const list = getProjectsList();
+        allData.projects = list;
+        list.forEach(p => {
+            allData[`proj_${p.id}`] = JSON.parse(localStorage.getItem(`planflow_proj_${p.id}`) || '{}');
+        });
+        
+        try {
+            await fetch(CLOUD_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'save', payload: allData })
+            });
+            dot.style.background = 'var(--status-done)';
+            text.innerText = 'ซิงค์สำเร็จ';
+        } catch(e) {
+            dot.style.background = 'var(--status-late)';
+            text.innerText = 'ซิงค์ล้มเหลว';
+            console.error('Sync failed', e);
+        }
+    }, 2000); // 2 seconds debounce
+};
+
 const saveLocal = (forceId = currentProjectId) => {
     const d={projectName:state.projectName,tasks:state.tasks.map(t=>({...t,start:fmtDate(t.start),end:fmtDate(t.end),actualStart:fmtDate(t.actualStart),actualEnd:fmtDate(t.actualEnd),baselineStart:fmtDate(t.baselineStart),baselineEnd:fmtDate(t.baselineEnd)})),workOnSundays:state.workOnSundays,workOnHolidays:state.workOnHolidays,holidays:state.holidays};
     localStorage.setItem(`planflow_proj_${forceId}`,JSON.stringify(d));
@@ -1369,6 +1393,7 @@ const saveLocal = (forceId = currentProjectId) => {
         p.updated = Date.now();
         saveProjectsList(list);
     }
+    triggerAutoSync();
 };
 const loadLocal = () => {
     const raw=localStorage.getItem(`planflow_proj_${currentProjectId}`); if(!raw) return false;
@@ -2074,68 +2099,7 @@ const init = () => {
     document.getElementById('btn-export-excel').addEventListener('click',exportExcel);
     document.getElementById('btn-export-img').addEventListener('click',exportImage);
 
-    // Cloud Sync
-    const CLOUD_URL = "https://script.google.com/macros/s/AKfycbwAV4cUGPxPP3UoI9TS74l8kZaeI3bO7TUeLMYc0VuKslU-sXTBTzVtLGRGmnEmMOc/exec";
-    
-    document.getElementById('btn-sync-cloud').addEventListener('click', () => {
-        document.getElementById('cloud-modal').classList.add('open');
-    });
-    
-    document.getElementById('btn-cloud-save').addEventListener('click', async () => {
-        const url = CLOUD_URL;
-        if(!url) return alert('กรุณาระบุ Web App URL');
-        
-        saveLocal(); // Ensure current state is saved
-        const allData = {};
-        const list = getProjectsList();
-        allData.projects = list;
-        list.forEach(p => {
-            allData[`proj_${p.id}`] = JSON.parse(localStorage.getItem(`planflow_proj_${p.id}`) || '{}');
-        });
-        
-        try {
-            document.getElementById('btn-cloud-save').innerText = 'กำลังอัปโหลด...';
-            const res = await fetch(url, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'save', payload: allData })
-            });
-            // no-cors doesn't return readable response, just assume success if no throw
-            toast('ส่งข้อมูลขึ้น Cloud สำเร็จ (no-cors)', 'success');
-            document.getElementById('cloud-modal').classList.remove('open');
-        } catch(e) {
-            alert('เกิดข้อผิดพลาดในการอัปโหลด: ' + e.message);
-        } finally {
-            document.getElementById('btn-cloud-save').innerText = '⬆️ อัปโหลดขึ้น Cloud';
-        }
-    });
-
-    document.getElementById('btn-cloud-load').addEventListener('click', async () => {
-        const url = CLOUD_URL;
-        if(!url) return alert('กรุณาระบุ Web App URL');
-        
-        try {
-            document.getElementById('btn-cloud-load').innerText = 'กำลังดาวน์โหลด...';
-            const res = await fetch(url + '?action=load');
-            const data = await res.json();
-            if(data && data.projects) {
-                saveProjectsList(data.projects);
-                data.projects.forEach(p => {
-                    localStorage.setItem(`planflow_proj_${p.id}`, JSON.stringify(data[`proj_${p.id}`]));
-                });
-                toast('ดาวน์โหลดข้อมูลจาก Cloud สำเร็จ', 'success');
-                document.getElementById('cloud-modal').classList.remove('open');
-                switchProject(currentProjectId);
-            } else {
-                alert('ไม่พบข้อมูลโปรเจคใน Cloud');
-            }
-        } catch(e) {
-            alert('เกิดข้อผิดพลาดในการดาวน์โหลด: ' + e.message);
-        } finally {
-            document.getElementById('btn-cloud-load').innerText = '⬇️ ดาวน์โหลดกลับมา';
-        }
-    });
+    // Cloud Sync uses auto-sync now.
 
     // Column toggles
     Object.keys(state.colVisible).forEach(k=>{
