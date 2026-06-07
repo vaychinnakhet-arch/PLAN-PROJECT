@@ -1527,7 +1527,7 @@ const renderTaskPanel = (visible, ROW) => {
             if(cw > nameW) nameW = cw;
         });
     }
-    nameW = Math.max(200, Math.min(300, nameW));
+    nameW = Math.max(200, Math.min(600, nameW));
     const COL_WIDTHS = { id: 50, name: nameW, dur: 130, start: 110, end: 110, progress: 110, resource: 110 };
     const totalColW = cols.reduce((sum, c) => sum + (COL_WIDTHS[c.key] || 110), 0);
     if (state.taskPanelWidth !== null && state.taskPanelWidth !== undefined) {
@@ -1609,7 +1609,7 @@ const buildCols = () => {
             if (w > maxNameWidth) maxNameWidth = w;
         });
     }
-    maxNameWidth = Math.min(maxNameWidth, 300); // cap name column width
+    maxNameWidth = Math.min(maxNameWidth, 600); // cap name column width
     const cols=[];
     cols.push({key:'id',label:'ID',style:'width:50px;flex-shrink:0;',show:state.colVisible.id});
     cols.push({key:'name',label:'Task Name',style:`width:${maxNameWidth}px;flex-shrink:0;`,show:true});
