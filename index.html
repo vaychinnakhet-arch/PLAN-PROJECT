@@ -2153,7 +2153,7 @@ const init = () => {
     // Modal events
     document.getElementById('modal-close').addEventListener('click',closeModal);
     document.getElementById('modal-cancel').addEventListener('click',closeModal);
-    document.getElementById('task-modal').addEventListener('click',e=>{if(e.target===document.getElementById('task-modal'))closeModal();});
+    // document.getElementById('task-modal').addEventListener('click',e=>{if(e.target===document.getElementById('task-modal'))closeModal();});
     document.getElementById('f-progress').addEventListener('input',e=>document.getElementById('prog-val').textContent=e.target.value);
     document.getElementById('f-duration').addEventListener('input',()=>syncModalDates('duration'));
     document.getElementById('f-start').addEventListener('input',()=>syncModalDates('start'));
