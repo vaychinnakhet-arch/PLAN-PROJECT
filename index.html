@@ -643,6 +643,59 @@
             transition: transform 0.2s; flex-shrink: 0;
         }
         .ai-chat-send:hover { transform: scale(1.05); }
+
+        /* ─── PRINT STYLES ───────────────────────────── */
+        @media print {
+            #app-header, #toolbar-row, #task-add-bar, #btn-fab-ai, .ai-chatbox, .dropdown-menu, #resizer {
+                display: none !important;
+            }
+            @page {
+                size: landscape;
+                margin: 8mm;
+            }
+            body, html {
+                height: auto !important;
+                overflow: visible !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            #app-body {
+                height: auto !important;
+                overflow: visible !important;
+            }
+            #main-area {
+                height: auto !important;
+                overflow: visible !important;
+                display: flex !important;
+                flex-direction: row !important;
+            }
+            #task-panel {
+                height: auto !important;
+                overflow: visible !important;
+                width: auto !important;
+                border-right: 1px solid #000000 !important;
+            }
+            #task-body-wrap {
+                height: auto !important;
+                overflow: visible !important;
+            }
+            #gantt-panel {
+                height: auto !important;
+                overflow: visible !important;
+            }
+            #gantt-scroll {
+                height: auto !important;
+                overflow: visible !important;
+            }
+            #gantt-canvas {
+                height: auto !important;
+            }
+            .task-row, .gantt-row {
+                page-break-inside: avoid !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -755,6 +808,7 @@
             <button class="dd-item" id="btn-export-csv">ส่งออก CSV</button>
             <button class="dd-item" id="btn-export-excel">ส่งออก Excel</button>
             <button class="dd-item" id="btn-export-img">ส่งออกรูปภาพ</button>
+            <button class="dd-item" id="btn-export-pdf">ส่งออก PDF (พิมพ์)</button>
         </div>
     </div>
 
@@ -1061,15 +1115,29 @@ const COLORS = [
 ];
 
 // ── UTILS ─────────────────────────────────────────────
-const fmtDate = d => {
-    if (!d || isNaN(new Date(d).getTime())) return '';
-    const dt = typeof d === 'string' ? new Date(d + 'T00:00:00') : new Date(d);
-    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
-};
 const parseDate = s => {
     if (!s) return null;
-    const d = new Date(s + 'T00:00:00');
-    return isNaN(d.getTime()) ? null : d;
+    if (s instanceof Date) return isNaN(s.getTime()) ? null : s;
+    if (typeof s === 'string') {
+        s = s.trim();
+        if (s.includes('T') || s.includes('Z')) {
+            const d = new Date(s);
+            if (!isNaN(d.getTime())) return d;
+        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+            const d = new Date(s + 'T00:00:00');
+            if (!isNaN(d.getTime())) return d;
+        }
+        const d = new Date(s);
+        if (!isNaN(d.getTime())) return d;
+    }
+    return null;
+};
+const fmtDate = d => {
+    if (!d) return '';
+    const dt = parseDate(d);
+    if (!dt) return '';
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
 };
 const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
 const daysBetween = (a, b) => {
@@ -1879,69 +1947,327 @@ const exportCSV = () => {
     toast('ส่งออก CSV เรียบร้อย','success');
 };
 const exportExcel = () => {
-    const map=new Map(state.tasks.map(t=>[t.id,t]));
-    const getLevel=t=>{let l=0;let cur=t;while(cur.parentId){cur=map.get(cur.parentId);if(!cur)break;l++;}return l;};
-    let html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>table,th,td{border:1px solid #ccc;border-collapse:collapse}th{background:#f9fafb;color:#1f2937;padding:6px}td{padding:5px}</style></head><body><table><thead><tr><th>ID</th><th>Task Name</th><th>Duration (Days)</th><th>Start Date</th><th>End Date</th><th>Assignee</th><th>Progress (%)</th></tr></thead><tbody>`;
-    const addRow=t=>{
-        const l=getLevel(t); const indent='&nbsp;'.repeat(l*4);
-        html+=`<tr><td>${t.id}</td><td>${indent}${t.name}</td><td>${t.duration||0}</td><td>${fmtDate(t.start)}</td><td>${fmtDate(t.end)}</td><td>${t.resource||''}</td><td>${t.progress||0}%</td></tr>`;
-        state.tasks.filter(c=>c.parentId===t.id).sort((a,b)=>(a.order||0)-(b.order||0)).forEach(addRow);
+    calcGanttRange();
+    if (!state.ganttStart || !state.ganttEnd) return;
+    
+    const totalDays = Math.ceil(daysBetween(state.ganttStart, state.ganttEnd)) + 1;
+    const map = new Map(state.tasks.map(t => [t.id, t]));
+    const getLevel = t => {
+        let l = 0; let cur = t;
+        while (cur.parentId !== null) {
+            cur = state.tasks.find(p => p.id === cur.parentId);
+            if (!cur) break;
+            l++;
+        }
+        return l;
     };
-    state.tasks.filter(t=>t.parentId===null).sort((a,b)=>(a.order||0)-(b.order||0)).forEach(addRow);
-    html+=`</tbody></table></body></html>`;
-    const blob=new Blob([html],{type:'application/vnd.ms-excel'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${state.projectName}.xls`;a.click();
-    toast('ส่งออก Excel เรียบร้อย','success');
+    
+    // Build visible list (respect collapse)
+    const visible = [];
+    const walk = (t, parentCollapsed) => {
+        if (parentCollapsed) return;
+        visible.push(t);
+        state.tasks.filter(c => c.parentId === t.id).sort((a,b) => (a.order||0) - (b.order||0)).forEach(c => walk(c, t.isCollapsed));
+    };
+    state.tasks.filter(t => t.parentId === null).sort((a,b) => (a.order||0) - (b.order||0)).forEach(t => walk(t, false));
+
+    // Build colgroup
+    let colGroup = `<colgroup>
+        <col width="50">
+        <col width="280">
+        <col width="80">
+        <col width="100">
+        <col width="100">
+        <col width="80">
+        <col width="110">`;
+    for (let i = 0; i < totalDays; i++) {
+        colGroup += `<col width="24">`;
+    }
+    colGroup += `</colgroup>`;
+
+    // Styles for Excel
+    const safeSheetName = (state.projectName || 'Sheet1').replace(/[\\\/\?\*\[\]]/g, '').substring(0, 30);
+    let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="UTF-8">
+<!--[if gte mso 9]><xml>
+<x:ExcelWorkbook>
+    <x:ExcelWorksheets>
+        <x:ExcelWorksheet>
+            <x:Name>${safeSheetName}</x:Name>
+            <x:WorksheetOptions>
+                <x:DisplayGridlines/>
+            </x:WorksheetOptions>
+        </x:ExcelWorksheet>
+    </x:ExcelWorksheets>
+</x:ExcelWorkbook>
+</xml><![endif]-->
+<style>
+    body { font-family: 'Sarabun', 'Segoe UI', Arial, sans-serif; }
+    table { border-collapse: collapse; }
+    th { border: 1px solid #cbd5e1; background-color: #4f46e5; color: #ffffff; font-weight: bold; text-align: center; font-size: 12px; height: 30px; }
+    .th-gantt { background-color: #1e1b4b; font-size: 10px; border: 1px solid #cbd5e1; }
+    td { border: 1px solid #cbd5e1; font-size: 11px; padding: 4px; height: 24px; vertical-align: middle; }
+    .td-id { text-align: center; font-weight: bold; background-color: #f1f5f9; }
+    .td-dur { text-align: center; }
+    .td-date { text-align: center; }
+    .td-prog { text-align: center; }
+    .parent-row { font-weight: bold; background-color: #f8fafc; }
+    .gantt-cell { width: 22px; text-align: center; border: 1px solid #e2e8f0; }
+</style>
+</head>
+<body>
+<table>
+${colGroup}
+<thead>
+    <!-- Row 1: Month Headers -->
+    <tr>
+        <th colspan="7" style="background-color: #312e81;">รายละเอียดงาน</th>`;
+        
+    // Months spanning columns
+    const months = [];
+    for (let i = 0; i < totalDays; i++) {
+        const d = addDays(state.ganttStart, i);
+        const mk = `${d.getFullYear()}-${d.getMonth()}`;
+        if (months.length === 0 || months[months.length - 1].mk !== mk) {
+            months.push({ mk, name: `${THAI_MONTHS[d.getMonth()]} ${d.getFullYear()+543}`, count: 0 });
+        }
+        months[months.length - 1].count++;
+    }
+    months.forEach(m => {
+        html += `<th colspan="${m.count}" class="th-gantt">${m.name}</th>`;
+    });
+    
+    html += `</tr>
+    <!-- Row 2: Standard Headers and Day Columns -->
+    <tr>
+        <th>ID</th>
+        <th style="width: 280px;">Task Name</th>
+        <th>Duration (Days)</th>
+        <th>Start Date</th>
+        <th>End Date</th>
+        <th>Progress (%)</th>
+        <th>Assignee</th>`;
+        
+    for (let i = 0; i < totalDays; i++) {
+        const d = addDays(state.ganttStart, i);
+        const isSun = d.getDay() === 0;
+        const isSat = d.getDay() === 6;
+        let bg = 'background-color: #312e81; color: #ffffff;';
+        if (isSun) bg = 'background-color: #ef4444; color: #ffffff;';
+        else if (isSat) bg = 'background-color: #4338ca; color: #ffffff;';
+        html += `<th class="th-gantt" style="width: 24px; ${bg}">${d.getDate()}</th>`;
+    }
+    
+    html += `</tr>
+</thead>
+<tbody>`;
+
+    visible.forEach(t => {
+        const level = getLevel(t);
+        const isParent = state.tasks.some(c => c.parentId === t.id);
+        const indent = "&nbsp;&nbsp;&nbsp;&nbsp;".repeat(level);
+        const rowClass = isParent ? ' class="parent-row"' : '';
+        const color = getRootColor(t);
+        const lightColor = lighten(color, 40);
+        
+        html += `<tr${rowClass}>
+            <td class="td-id">${t.wbs || t.id}</td>
+            <td style="padding-left: ${level * 15 + 5}px;">${t.name}</td>
+            <td class="td-dur">${t.duration || 0} วัน</td>
+            <td class="td-date">${t.start ? fmtDate(t.start) : '—'}</td>
+            <td class="td-date">${t.end ? fmtDate(t.end) : '—'}</td>
+            <td class="td-prog">${t.progress || 0}%</td>
+            <td>${t.resource || '—'}</td>`;
+            
+        // Gantt active cells
+        for (let i = 0; i < totalDays; i++) {
+            const d = addDays(state.ganttStart, i);
+            const isActive = t.start && t.end && d >= t.start && d <= t.end;
+            if (isActive) {
+                const cellBg = isParent ? color : lightColor;
+                html += `<td style="background-color: ${cellBg};" class="gantt-cell" title="${t.name}"></td>`;
+            } else {
+                const isSun = d.getDay() === 0;
+                const isSat = d.getDay() === 6;
+                let cellBg = '';
+                if (isSun) cellBg = '#fef2f2';
+                else if (isSat) cellBg = '#e0e7ff';
+                html += `<td style="background-color: ${cellBg};" class="gantt-cell"></td>`;
+            }
+        }
+        html += `</tr>`;
+    });
+    
+    html += `</tbody>
+</table>
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${state.projectName}.xls`;
+    a.click();
+    toast('ส่งออก Excel เรียบร้อย', 'success');
 };
+
 const exportImage = () => {
-    const el=document.getElementById('main-area');
-    const tbw=document.getElementById('task-body-wrap');
-    const gs=document.getElementById('gantt-scroll');
-    const addBar=document.getElementById('task-add-bar');
+    if (state.view === 'calendar') {
+        const el = document.getElementById('calendar-view');
+        const oldOverflow = el.style.overflow;
+        const oldHeight = el.style.height;
+        
+        el.style.overflow = 'visible';
+        el.style.height = 'auto';
+        
+        html2canvas(el, {
+            backgroundColor: '#ffffff',
+            scale: 3,
+            useCORS: true,
+            logging: false
+        }).then(c => {
+            el.style.overflow = oldOverflow;
+            el.style.height = oldHeight;
+            
+            const a = document.createElement('a');
+            a.download = `${state.projectName}_calendar.png`;
+            a.href = c.toDataURL('image/png', 1.0);
+            a.click();
+            toast('ส่งออกรูปภาพปฏิทินเรียบร้อย', 'success');
+        }).catch(err => {
+            el.style.overflow = oldOverflow;
+            el.style.height = oldHeight;
+            console.error(err);
+            toast('ส่งออกรูปภาพไม่สำเร็จ', 'error');
+        });
+        return;
+    }
+
+    const el = document.getElementById('main-area');
+    const tbw = document.getElementById('task-body-wrap');
+    const gs = document.getElementById('gantt-scroll');
+    const gp = document.getElementById('gantt-panel');
+    const ghw = document.getElementById('gantt-header-wrap');
+    const addBar = document.getElementById('task-add-bar');
+    const resizer = document.getElementById('resizer');
     
-    // Save original styles
-    const oldBorderTop=el.style.borderTop;
-    const oldBorder=el.style.border;
-    const oldHeight=el.style.height;
-    const oldFlex=el.style.flex;
-    const oldTbwOverflow=tbw.style.overflow;
-    const oldGsOverflow=gs.style.overflow;
-    const oldAddBarDisplay=addBar.style.display;
+    // Save original styles & scroll positions
+    const oldBorderTop = el.style.borderTop;
+    const oldBorder = el.style.border;
+    const oldHeight = el.style.height;
+    const oldWidth = el.style.width;
+    const oldFlex = el.style.flex;
     
-    // Calculate content height
-    const theadH = document.getElementById('task-header').offsetHeight || 54;
+    const oldGpWidth = gp.style.width;
+    const oldGpFlex = gp.style.flex;
+    
+    const oldGsWidth = gs.style.width;
+    const oldGsOverflow = gs.style.overflow;
+    const oldTbwOverflow = tbw.style.overflow;
+    const oldAddBarDisplay = addBar.style.display;
+    const oldResizerDisplay = resizer.style.display;
+    
+    const oldGsScrollLeft = gs.scrollLeft;
+    const oldGsScrollTop = gs.scrollTop;
+    const oldTbwScrollLeft = tbw.scrollLeft;
+    const oldTbwScrollTop = tbw.scrollTop;
+    const oldGhwScrollLeft = ghw.scrollLeft;
+
+    // Reset scroll positions to 0 for full capture alignment
+    gs.scrollLeft = 0;
+    gs.scrollTop = 0;
+    tbw.scrollLeft = 0;
+    tbw.scrollTop = 0;
+    ghw.scrollLeft = 0;
+
+    // Calculate content size
+    const panelW = document.getElementById('task-panel').offsetWidth || 0;
+    const ganttW = document.getElementById('gantt-canvas').offsetWidth || 0;
+    const totalW = panelW + ganttW + 4; // +4 for borders
+    
+    const theadH = document.getElementById('task-header').offsetHeight || 61;
     const tbodyH = document.getElementById('task-body').offsetHeight || 0;
-    const contentH = theadH + tbodyH;
+    const contentH = theadH + tbodyH + 2;
     
     // Temporarily adjust for capture
     addBar.style.display = 'none';
+    resizer.style.display = 'none';
     tbw.style.overflow = 'hidden';
     gs.style.overflow = 'hidden';
+    
     el.style.flex = 'none';
-    el.style.height = `${contentH + 2}px`; // +2 for borders
+    el.style.height = `${contentH}px`;
+    el.style.width = `${totalW}px`;
     el.style.border = '1px solid var(--border-dark)';
     
-    html2canvas(el,{backgroundColor:state.theme==='dark'?'#0f172a':'#f3f4f6',scale:3,useCORS:true}).then(c=>{
-        // Restore
-        el.style.borderTop=oldBorderTop;
-        el.style.border=oldBorder;
-        el.style.height=oldHeight;
-        el.style.flex=oldFlex;
-        tbw.style.overflow=oldTbwOverflow;
-        gs.style.overflow=oldGsOverflow;
-        addBar.style.display=oldAddBarDisplay;
+    gp.style.flex = 'none';
+    gp.style.width = `${ganttW}px`;
+    
+    gs.style.width = `${ganttW}px`;
+    
+    html2canvas(el, {
+        backgroundColor: '#ffffff', // Clean white background for printing/exporting
+        scale: 3,                  // Very high resolution
+        useCORS: true,
+        logging: false,
+        width: totalW,
+        height: contentH
+    }).then(c => {
+        // Restore styles
+        el.style.borderTop = oldBorderTop;
+        el.style.border = oldBorder;
+        el.style.height = oldHeight;
+        el.style.width = oldWidth;
+        el.style.flex = oldFlex;
         
-        const a=document.createElement('a');a.download=`${state.projectName}.png`;a.href=c.toDataURL('image/png',1.0);a.click();
-        toast('ส่งออกรูปภาพเรียบร้อย','success');
-    }).catch(()=>{
-        el.style.borderTop=oldBorderTop;
-        el.style.border=oldBorder;
-        el.style.height=oldHeight;
-        el.style.flex=oldFlex;
-        tbw.style.overflow=oldTbwOverflow;
-        gs.style.overflow=oldGsOverflow;
-        addBar.style.display=oldAddBarDisplay;
-        toast('ส่งออกรูปภาพไม่สำเร็จ','error');
+        gp.style.flex = oldGpFlex;
+        gp.style.width = oldGpWidth;
+        
+        gs.style.width = oldGsWidth;
+        gs.style.overflow = oldGsOverflow;
+        tbw.style.overflow = oldTbwOverflow;
+        addBar.style.display = oldAddBarDisplay;
+        resizer.style.display = oldResizerDisplay;
+
+        // Restore scroll positions
+        gs.scrollLeft = oldGsScrollLeft;
+        gs.scrollTop = oldGsScrollTop;
+        tbw.scrollLeft = oldTbwScrollLeft;
+        tbw.scrollTop = oldTbwScrollTop;
+        ghw.scrollLeft = oldGhwScrollLeft;
+        
+        const a = document.createElement('a');
+        a.download = `${state.projectName}.png`;
+        a.href = c.toDataURL('image/png', 1.0);
+        a.click();
+        toast('ส่งออกรูปภาพเรียบร้อย', 'success');
+    }).catch(err => {
+        // Restore styles
+        el.style.borderTop = oldBorderTop;
+        el.style.border = oldBorder;
+        el.style.height = oldHeight;
+        el.style.width = oldWidth;
+        el.style.flex = oldFlex;
+        
+        gp.style.flex = oldGpFlex;
+        gp.style.width = oldGpWidth;
+        
+        gs.style.width = oldGsWidth;
+        gs.style.overflow = oldGsOverflow;
+        tbw.style.overflow = oldTbwOverflow;
+        addBar.style.display = oldAddBarDisplay;
+        resizer.style.display = oldResizerDisplay;
+
+        // Restore scroll positions
+        gs.scrollLeft = oldGsScrollLeft;
+        gs.scrollTop = oldGsScrollTop;
+        tbw.scrollLeft = oldTbwScrollLeft;
+        tbw.scrollTop = oldTbwScrollTop;
+        ghw.scrollLeft = oldGhwScrollLeft;
+        
+        console.error(err);
+        toast('ส่งออกรูปภาพไม่สำเร็จ', 'error');
     });
 };
 
@@ -2203,6 +2529,7 @@ const init = () => {
     document.getElementById('btn-export-csv').addEventListener('click',exportCSV);
     document.getElementById('btn-export-excel').addEventListener('click',exportExcel);
     document.getElementById('btn-export-img').addEventListener('click',exportImage);
+    document.getElementById('btn-export-pdf').addEventListener('click',()=>window.print());
 
     // Cloud Sync uses auto-sync now.
 

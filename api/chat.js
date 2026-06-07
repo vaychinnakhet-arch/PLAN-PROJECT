@@ -30,7 +30,8 @@ Each task object has properties:
 Important rules:
 1. Always return a single array containing all tasks.
 2. Parent-child relationships are defined by parentId, NOT by hierarchical IDs. Task IDs must be unique integers.
-3. Keep the language in Thai.`;
+3. Keep the language in Thai.
+4. CRITICAL: You must preserve the existing start dates, end dates, durations, resources, progress, and other fields for all tasks that are NOT affected by the user's request. Do NOT set them to null or change them unless requested.`;
 
     const userContent = `Current Tasks:\n${JSON.stringify(tasks, null, 2)}\n\nUser Request: ${prompt}`;
 
