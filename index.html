@@ -2098,7 +2098,11 @@ const init = () => {
                 }
             } catch (err) {
                 console.error(err, rawJson);
-                addAiMsg('ขออภัย ไม่สามารถประมวลผลข้อมูล JSON จาก AI ได้', 'system');
+                if (text && !text.includes('```json')) {
+                    addAiMsg(text, 'bot');
+                } else {
+                    addAiMsg('ขออภัย ไม่สามารถประมวลผลข้อมูล JSON จาก AI ได้', 'system');
+                }
             }
         } catch (e) {
             console.error(e);
