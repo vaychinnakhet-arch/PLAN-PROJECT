@@ -185,9 +185,9 @@
 
         #gantt-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-surface); }
 
-        /* Task panel header */
         #task-header {
-            display: flex; align-items: center; height: calc(var(--gantt-h1) + var(--gantt-h2) + 1px);
+            display: flex; align-items: center; 
+            height: 61px; min-height: 61px; max-height: 61px;
             background: var(--bg-card); border-bottom: 1px solid var(--border-dark);
             flex-shrink: 0;
         }
@@ -235,7 +235,10 @@
         .collapsed .collapse-icon { transform: rotate(-90deg); }
 
         /* ─── GANTT CHART PANEL ───────────────────────── */
-        #gantt-header-wrap { flex-shrink: 0; overflow: hidden; border-bottom: 1px solid var(--border-dark); }
+        #gantt-header-wrap { 
+            flex-shrink: 0; overflow: hidden; border-bottom: 1px solid var(--border-dark); 
+            height: 61px; min-height: 61px; max-height: 61px;
+        }
         #gantt-header { background: var(--bg-card); width: max-content; min-width: 100%; }
         .gh-months { display: flex; height: var(--gantt-h1); border-bottom: 1px solid var(--border-dark); }
         .gh-month-cell {
@@ -258,6 +261,8 @@
 
         #gantt-scroll { flex: 1; overflow: auto; position: relative; }
         #gantt-canvas { position: relative; }
+        #gantt-day-cols, #gantt-bars { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        #gantt-bars { pointer-events: auto; z-index: 10; }
 
         /* Grid rows */
         .gantt-row {
