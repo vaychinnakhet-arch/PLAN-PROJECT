@@ -1832,7 +1832,15 @@ const init = () => {
     document.getElementById('toggle-mode').addEventListener('click',()=>{state.mode=state.mode==='presentation'?'update':'presentation';render();});
     document.getElementById('tab-gantt').addEventListener('click',()=>{state.view='gantt';render();});
     document.getElementById('tab-calendar').addEventListener('click',()=>{state.view='calendar';render();});
-    document.getElementById('btn-add-task').addEventListener('click',()=>document.getElementById('new-task-input').focus());
+    document.getElementById('btn-add-task').addEventListener('click',()=>{
+        const td=new Date(); td.setHours(0,0,0,0);
+        const end=addWorkingDays(td,0);
+        const topOrder=Math.max(-1,...state.tasks.filter(t=>t.parentId===null).map(t=>t.order||0));
+        const newTaskId = nextId();
+        state.tasks.push({id:newTaskId,name:'งานใหม่',start:td,end,duration:1,progress:0,parentId:null,isCollapsed:false,dependencies:'',schedulingMode:'manual',order:topOrder+1,resource:'',color:null,actualStart:null,actualEnd:null,baselineStart:null,baselineEnd:null});
+        render();
+        openModal(newTaskId);
+    });
     document.getElementById('btn-goto-today').addEventListener('click',()=>{
         const gs=document.getElementById('gantt-scroll');
         const offset=daysBetween(state.ganttStart,new Date())*state.dayWidth;
