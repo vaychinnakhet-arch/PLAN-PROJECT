@@ -198,6 +198,7 @@
             display: flex; align-items: center; overflow: hidden;
             user-select: none; white-space: nowrap;
         }
+        .th-cell:last-child { border-right: none; }
         #task-body-wrap { flex: 1; overflow: auto; position: relative; }
         #task-body { }
 
@@ -219,6 +220,7 @@
             display: flex; align-items: center; overflow: hidden;
             white-space: nowrap; flex-shrink: 0;
         }
+        .td-cell:last-child { border-right: none; }
         .td-cell.name-cell { flex: 1; min-width: 0; }
         .task-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
