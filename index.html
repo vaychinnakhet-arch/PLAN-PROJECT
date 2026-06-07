@@ -1969,17 +1969,22 @@ const setupDragDrop = () => {
     body.addEventListener('dragover',e=>{
         e.preventDefault();
         const row=e.target.closest('.task-row');
-        document.querySelectorAll('.drop-above,.drop-below').forEach(x=>{if(x!==row){x.classList.remove('drop-above','drop-below');}});
+        document.querySelectorAll('.drop-above,.drop-below,.drop-into').forEach(x=>{if(x!==row){x.classList.remove('drop-above','drop-below','drop-into');}});
         if(!row||!dragId) return;
         const tid=parseInt(row.dataset.id);
         const dt=state.tasks.find(t=>t.id===dragId);
         const tt=state.tasks.find(t=>t.id===tid);
-        if(!dt||!tt||dt.id===tt.id||dt.parentId!==tt.parentId) return;
+        if(!dt||!tt||dt.id===tt.id) return;
+        let isDescendant=false;let curr=tt;
+        while(curr.parentId){if(curr.parentId===dt.id){isDescendant=true;break;}curr=state.tasks.find(x=>x.id===curr.parentId)||{};}
+        if(isDescendant) return;
         const rect=row.getBoundingClientRect();
-        if(e.clientY<rect.top+rect.height/2){row.classList.add('drop-above');row.classList.remove('drop-below');}
-        else{row.classList.add('drop-below');row.classList.remove('drop-above');}
+        const y=e.clientY-rect.top;
+        if(y<rect.height*0.25){row.classList.add('drop-above');row.classList.remove('drop-below','drop-into');}
+        else if(y>rect.height*0.75){row.classList.add('drop-below');row.classList.remove('drop-above','drop-into');}
+        else{row.classList.add('drop-into');row.classList.remove('drop-above','drop-below');}
     });
-    body.addEventListener('dragleave',e=>{const r=e.target.closest('.task-row');if(r){r.classList.remove('drop-above','drop-below');}});
+    body.addEventListener('dragleave',e=>{const r=e.target.closest('.task-row');if(r){r.classList.remove('drop-above','drop-below','drop-into');}});
     body.addEventListener('drop',e=>{
         e.preventDefault();
         const row=e.target.closest('.task-row');
@@ -1988,14 +1993,28 @@ const setupDragDrop = () => {
         const dt=state.tasks.find(t=>t.id===dragId);
         const tt=state.tasks.find(t=>t.id===tid);
         const above=row.classList.contains('drop-above');
-        row.classList.remove('drop-above','drop-below');
-        if(!dt||!tt||dt.id===tt.id||dt.parentId!==tt.parentId) return;
-        const sibs=state.tasks.filter(t=>t.parentId===dt.parentId).sort((a,b)=>(a.order||0)-(b.order||0));
-        const di=sibs.findIndex(t=>t.id===dragId);
-        const [removed]=sibs.splice(di,1);
-        let ti=sibs.findIndex(t=>t.id===tid);
-        sibs.splice(above?ti:ti+1,0,removed);
-        sibs.forEach((t,i)=>{const ts=state.tasks.find(x=>x.id===t.id);if(ts)ts.order=i;});
+        const into=row.classList.contains('drop-into');
+        row.classList.remove('drop-above','drop-below','drop-into');
+        if(!dt||!tt||dt.id===tt.id) return;
+        let isDescendant=false;let curr=tt;
+        while(curr.parentId){if(curr.parentId===dt.id){isDescendant=true;break;}curr=state.tasks.find(x=>x.id===curr.parentId)||{};}
+        if(isDescendant) return;
+        
+        if(into){
+            dt.parentId=tt.id;
+            const sibs=state.tasks.filter(t=>t.parentId===tt.id).sort((a,b)=>(a.order||0)-(b.order||0));
+            dt.order=sibs.length?sibs[sibs.length-1].order+1:0;
+        }else{
+            dt.parentId=tt.parentId;
+            const sibs=state.tasks.filter(t=>t.parentId===dt.parentId).sort((a,b)=>(a.order||0)-(b.order||0));
+            const di=sibs.findIndex(t=>t.id===dragId);
+            if(di>-1) sibs.splice(di,1);
+            let ti=sibs.findIndex(t=>t.id===tid);
+            sibs.splice(above?ti:ti+1,0,dt);
+            sibs.forEach((t,i)=>{const ts=state.tasks.find(x=>x.id===t.id);if(ts)ts.order=i;});
+        }
+        reevalAutoTasks();
+        updateParentDates();
         render();
     });
     body.addEventListener('dragend',()=>{document.querySelectorAll('.drag-ghost').forEach(x=>x.classList.remove('drag-ghost'));dragId=null;});
