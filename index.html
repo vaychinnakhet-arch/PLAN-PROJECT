@@ -185,7 +185,7 @@
         #gantt-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-surface); }
 
         #task-header {
-            display: flex; align-items: center; 
+            display: flex; align-items: center; min-width: min-content; 
             height: 61px; min-height: 61px; max-height: 61px;
             background: var(--bg-card); border-bottom: 1px solid var(--border-dark);
             flex-shrink: 0;
@@ -202,7 +202,7 @@
         #task-body { }
 
         .task-row {
-            display: flex; align-items: center;
+            display: flex; align-items: center; min-width: min-content;
             height: var(--row-h);
             border-bottom: 1px solid var(--border-dark);
             cursor: pointer; transition: background 0.15s;
@@ -1511,7 +1511,7 @@ const renderGantt = () => {
     };
     state.tasks.filter(t=>t.parentId===null).sort((a,b)=>(a.order||0)-(b.order||0)).forEach(t=>walk(t,false));
 
-    const ROW=38; // match --row-h
+    const ROW=40; // match --row-h
     const totalH=visible.length*ROW;
 
     renderTaskPanel(visible, ROW);
@@ -1536,8 +1536,9 @@ const renderTaskPanel = (visible, ROW) => {
         const status=calcStatus(t);
         const statusMap={done:`<div class="status-chip status-done"><div class="status-dot" style="background:var(--status-done)"></div>เสร็จ</div>`,ok:`<div class="status-chip status-ok"><div class="status-dot" style="background:var(--status-ok)"></div>ตามแผน</div>`,risk:`<div class="status-chip status-risk"><div class="status-dot" style="background:var(--status-risk)"></div>เสี่ยง</div>`,late:`<div class="status-chip status-late"><div class="status-dot" style="background:var(--status-late)"></div>ล่าช้า</div>`};
         const pct=t.progress||0;
-        const colorBar=t.color||'#6c63ff';
-        const rowBg = isParent ? `background:${colorBar}22;` : '';
+        const colorBar=getRootColor(t);
+        const level=getLevel(t);
+        const rowBg = level===0 ? `background:${colorBar}25;` : (level===1 ? `background:${colorBar}0D;` : '');
 
         return `<div class="task-row${isParent?' is-parent':''}${state.selectedTaskId===t.id?' selected':''}" data-id="${t.id}" draggable="true" style="${rowBg}">
             ${cols.map(c=>{
@@ -1570,6 +1571,16 @@ const getLevel = t => {
     let l=0; let cur=t;
     while(cur.parentId!==null){cur=state.tasks.find(p=>p.id===cur.parentId);if(!cur)break;l++;}
     return l;
+};
+
+const getRootColor = t => {
+    let cur=t;
+    while(cur.parentId!==null){
+        const p=state.tasks.find(x=>x.id===cur.parentId);
+        if(!p)break;
+        cur=p;
+    }
+    return cur.color || '#6c63ff';
 };
 
 const buildCols = () => {
@@ -1623,7 +1634,7 @@ const renderGanttChart = (visible, totalDays, totalW, totalH, ROW, dw) => {
     // ── Grid rows ──
     document.getElementById('gantt-grid-rows').innerHTML=visible.map((t,i)=>{
         const isParent=state.tasks.some(c=>c.parentId===t.id);
-        const colorBar=t.color||'#6c63ff';
+        const colorBar=getRootColor(t);
         const bg=isParent ? `background:${colorBar}22;` : '';
         return `<div class="gantt-row${isParent?' is-parent':''}" style="width:${totalW}px;${bg}"></div>`;
     }).join('');
@@ -1650,7 +1661,7 @@ const renderGanttChart = (visible, totalDays, totalW, totalH, ROW, dw) => {
         if(!t.start||!t.end) return;
         const isParent=state.tasks.some(c=>c.parentId===t.id);
         const isMilestone=t.duration<=1&&t.start&&t.end&&fmtDate(t.start)===fmtDate(t.end);
-        let color=t.color||'#6c63ff';
+        let color=getRootColor(t);
         if(state.showCritical&&t.isCritical) color='#ff5370';
         const top=i*ROW;
         const left=daysBetween(state.ganttStart,t.start)*dw;
@@ -1694,8 +1705,8 @@ const renderGanttChart = (visible, totalDays, totalW, totalH, ROW, dw) => {
     } else {todayLine.style.display='none';}
 
     const panelH = document.getElementById('gantt-panel').offsetHeight;
-    const headerH = document.getElementById('gantt-header').offsetHeight || 54;
-    const canvasH = totalH;
+    const headerH = document.getElementById('gantt-header').offsetHeight || 61;
+    const canvasH = Math.max(totalH, panelH - headerH);
 
     document.getElementById('gantt-bars').innerHTML=barsHtml;
     document.getElementById('gantt-canvas').style.width=`${totalW}px`;
@@ -2062,6 +2073,10 @@ const init = () => {
     setupResizer();
     setupDragDrop();
     setupGanttBarClick();
+    
+    document.getElementById('task-body-wrap').addEventListener('scroll', e => {
+        document.getElementById('task-header').scrollLeft = e.target.scrollLeft;
+    });
 
     // ─ Header events ─
     document.getElementById('toggle-sun').addEventListener('click',()=>{state.workOnSundays=!state.workOnSundays;reevalAutoTasks();updateParentDates();render();});
