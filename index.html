@@ -169,7 +169,8 @@
             background: var(--bg-surface);
             display: flex; flex-direction: column;
             border-right: 1px solid var(--border-dark);
-            flex-shrink: 0; overflow-x: auto;
+            flex-shrink: 0;
+            overflow: hidden;
         }
         #resizer {
             width: 0px; background: transparent; flex-shrink: 0;
@@ -185,10 +186,12 @@
         #gantt-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-surface); }
 
         #task-header {
-            display: flex; align-items: center; min-width: min-content; 
+            display: flex; align-items: center;
             height: 61px; min-height: 61px; max-height: 61px;
             background: var(--bg-card); border-bottom: 1px solid var(--border-dark);
             flex-shrink: 0;
+            overflow: hidden;
+            width: 100%;
         }
         .th-cell {
             padding: 0 8px; font-size: 11px; font-weight: 800; color: var(--text-primary);
@@ -198,11 +201,11 @@
             user-select: none; white-space: nowrap;
         }
         .th-cell:last-child { border-right: none; }
-        #task-body-wrap { flex: 1; overflow: auto; position: relative; }
-        #task-body { }
+        #task-body-wrap { flex: 1; overflow: auto; position: relative; width: 100%; }
+        #task-body { min-width: max-content; width: 100%; }
 
         .task-row {
-            display: flex; align-items: center; min-width: min-content;
+            display: flex; align-items: center; min-width: 100%;
             height: var(--row-h);
             border-bottom: 1px solid var(--border-dark);
             cursor: pointer; transition: background 0.15s;
@@ -1086,7 +1089,7 @@ const workDaysDuration = (start, end) => {
     if (!start || !end) return 0;
     let c = new Date(start); let n = 0;
     while (c <= end) { if (isWorkingDay(c)) n++; c = addDays(c, 1); }
-    return n;
+    return n === 0 ? 1 : n;
 };
 const fmtThai = d => {
     if (!d) return '—';
