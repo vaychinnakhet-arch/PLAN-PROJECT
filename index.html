@@ -1392,21 +1392,30 @@ const renderTaskPanel = (visible, ROW) => {
     }).join('');
 };
 
+const getLevel = t => {
+    let l=0; let cur=t;
+    while(cur.parentId!==null){cur=state.tasks.find(p=>p.id===cur.parentId);if(!cur)break;l++;}
+    return l;
+};
+
 const buildCols = () => {
+    let maxNameWidth = 180;
+    if (state.tasks && state.tasks.length > 0) {
+        state.tasks.forEach(t => {
+            const level = getLevel(t);
+            const w = (t.name.length * 7.5) + (level * 18) + 80;
+            if (w > maxNameWidth) maxNameWidth = w;
+        });
+    }
     const cols=[];
     cols.push({key:'id',label:'ID',style:'width:50px;flex-shrink:0;',show:state.colVisible.id});
-    cols.push({key:'name',label:'Task Name',style:'flex:1;min-width:180px;',show:true});
+    cols.push({key:'name',label:'Task Name',style:`flex:1;min-width:${maxNameWidth}px;`,show:true});
     cols.push({key:'dur',label:'Duration (Days)',style:'width:130px;flex-shrink:0;',show:state.colVisible.dur});
     cols.push({key:'start',label:'Start Date',style:'width:110px;flex-shrink:0;',show:state.colVisible.start});
     cols.push({key:'end',label:'End Date',style:'width:110px;flex-shrink:0;',show:state.colVisible.end});
     cols.push({key:'progress',label:'Progress (%)',style:'width:110px;flex-shrink:0;',show:state.colVisible.progress});
     cols.push({key:'resource',label:'Assignee',style:'width:110px;flex-shrink:0;',show:state.colVisible.resource});
     return cols.filter(c=>c.show);
-};
-const getLevel = t => {
-    let l=0; let cur=t;
-    while(cur.parentId!==null){cur=state.tasks.find(p=>p.id===cur.parentId);if(!cur)break;l++;}
-    return l;
 };
 
 const renderGanttChart = (visible, totalDays, totalW, totalH, ROW, dw) => {
