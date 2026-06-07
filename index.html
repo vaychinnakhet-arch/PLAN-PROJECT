@@ -165,12 +165,13 @@
         /* ─── GANTT VIEW ─────────────────────────────── */
         #gantt-view { display: flex; flex: 1; overflow: hidden; }
         #task-panel {
-            width: 580px; min-width: 300px; max-width: 1000px;
+            min-width: 200px;
             background: var(--bg-surface);
             display: flex; flex-direction: column;
             border-right: 1px solid var(--border-dark);
             flex-shrink: 0;
             overflow: hidden;
+            transition: width 0.25s ease;
         }
         #resizer {
             width: 0px; background: transparent; flex-shrink: 0;
@@ -1031,7 +1032,7 @@ let state = {
     ganttEnd: null,
     calDate: new Date(),
     selectedTaskId: null,
-    colVisible: { id: true, dur: true, start: true, end: true, progress: false, resource: false },
+    colVisible: { id: true, dur: true, start: true, end: true, progress: true, resource: true },
     holidays: {
         '2025-01-01':'วันขึ้นปีใหม่','2025-02-12':'วันมาฆบูชา',
         '2025-04-06':'วันจักรี','2025-04-13':'วันสงกรานต์','2025-04-14':'วันสงกรานต์','2025-04-15':'วันสงกรานต์',
@@ -1524,6 +1525,13 @@ const renderGantt = () => {
 const renderTaskPanel = (visible, ROW) => {
     // Header
     const cols=buildCols();
+    // Auto-size panel width to fit all visible columns (no horizontal scroll needed)
+    const totalColW = cols.reduce((sum, c) => {
+        const m = c.style.match(/width:(\d+)px/);
+        return sum + (m ? parseInt(m[1]) : 0);
+    }, 0);
+    document.getElementById('task-panel').style.width = (totalColW + 2) + 'px';
+
     const hdr=document.getElementById('task-header');
     hdr.innerHTML=cols.map(c=>`<div class="th-cell" style="${c.style}">${c.label}</div>`).join('');
 
@@ -1594,6 +1602,7 @@ const buildCols = () => {
             if (w > maxNameWidth) maxNameWidth = w;
         });
     }
+    maxNameWidth = Math.min(maxNameWidth, 300); // cap name column width
     const cols=[];
     cols.push({key:'id',label:'ID',style:'width:50px;flex-shrink:0;',show:state.colVisible.id});
     cols.push({key:'name',label:'Task Name',style:`width:${maxNameWidth}px;flex-shrink:0;`,show:true});
@@ -2061,8 +2070,43 @@ const syncModalDates = (changed) => {
     }
 };
 
+// ── CLOUD LOAD ────────────────────────────────────────
+const loadFromCloud = async () => {
+    const dot = document.getElementById('sync-dot');
+    const text = document.getElementById('sync-text');
+    if(dot) dot.style.background = 'var(--accent-amber)';
+    if(text) text.innerText = 'กำลังโหลดจาก Cloud...';
+    try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 6000);
+        const res = await fetch(CLOUD_URL, { method: 'GET', signal: controller.signal });
+        clearTimeout(timer);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (data && data.projects && Array.isArray(data.projects) && data.projects.length > 0) {
+            localStorage.setItem('planflow_projects', JSON.stringify(data.projects));
+            data.projects.forEach(p => {
+                const pd = data[`proj_${p.id}`];
+                if (pd) localStorage.setItem(`planflow_proj_${p.id}`, JSON.stringify(pd));
+            });
+            if(dot) dot.style.background = 'var(--status-done)';
+            if(text) text.innerText = 'โหลดจาก Cloud สำเร็จ';
+            return true;
+        }
+        if(dot) dot.style.background = 'var(--status-risk)';
+        if(text) text.innerText = 'Cloud ว่างเปล่า ใช้ข้อมูลในเครื่อง';
+    } catch(e) {
+        console.warn('Cloud load failed:', e.message);
+        if(dot) dot.style.background = 'var(--status-late)';
+        if(text) text.innerText = 'โหลด Cloud ไม่ได้ ใช้ข้อมูลในเครื่อง';
+    }
+    return false;
+};
+
 // ── INIT & EVENTS ─────────────────────────────────────
-const init = () => {
+const init = async () => {
+    // โหลดจาก Cloud ก่อนเสมอ (single source of truth)
+    await loadFromCloud();
     // Load data
     migrateIfNeeded();
     if(!loadLocal()){
