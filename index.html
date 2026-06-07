@@ -1541,7 +1541,7 @@ const renderTaskPanel = (visible, ROW) => {
 
         return `<div class="task-row${isParent?' is-parent':''}${state.selectedTaskId===t.id?' selected':''}" data-id="${t.id}" draggable="true" style="${rowBg}">
             ${cols.map(c=>{
-                if(c.key==='name') return `<div class="td-cell name-cell" style="padding-left:${8+level*18}px;gap:0;">
+                if(c.key==='name') return `<div class="td-cell name-cell" style="${c.style};padding-left:${8+level*18}px;gap:0;">
                     ${isParent?`<button class="collapse-btn${t.isCollapsed?' collapsed':''}" data-collapse="${t.id}">
                         <svg class="collapse-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
                     </button>`:'<span style="width:20px;flex-shrink:0;display:inline-block;"></span>'}
