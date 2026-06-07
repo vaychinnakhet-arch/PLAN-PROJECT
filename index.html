@@ -166,11 +166,11 @@
         /* ─── GANTT VIEW ─────────────────────────────── */
         #gantt-view { display: flex; flex: 1; overflow: hidden; }
         #task-panel {
-            width: 400px; min-width: 220px; max-width: 700px;
+            width: 480px; min-width: 220px; max-width: 800px;
             background: var(--bg-surface);
             display: flex; flex-direction: column;
             border-right: 1px solid var(--border-dark);
-            flex-shrink: 0;
+            flex-shrink: 0; overflow-x: auto;
         }
         #resizer {
             width: 5px; background: transparent; cursor: col-resize; flex-shrink: 0;
@@ -1310,7 +1310,7 @@ const renderTaskPanel = (visible, ROW) => {
 const buildCols = () => {
     const cols=[];
     cols.push({key:'id',label:'ID',style:'width:40px;flex-shrink:0;',show:state.colVisible.id});
-    cols.push({key:'name',label:'ชื่องาน',style:'flex:1;min-width:0;',show:true});
+    cols.push({key:'name',label:'ชื่องาน',style:'flex:1;min-width:180px;',show:true});
     cols.push({key:'dur',label:'ระยะเวลา',style:'width:72px;flex-shrink:0;',show:state.colVisible.dur});
     cols.push({key:'start',label:'เริ่มต้น',style:'width:70px;flex-shrink:0;',show:state.colVisible.start});
     cols.push({key:'end',label:'สิ้นสุด',style:'width:70px;flex-shrink:0;',show:state.colVisible.end});
