@@ -1597,11 +1597,17 @@ const exportExcel = () => {
     toast('ส่งออก Excel เรียบร้อย','success');
 };
 const exportImage = () => {
-    const el=document.getElementById('gantt-view');
-    html2canvas(el,{backgroundColor:'#f3f4f6',scale:2,useCORS:true}).then(c=>{
-        const a=document.createElement('a');a.download=`${state.projectName}.png`;a.href=c.toDataURL();a.click();
+    const el=document.getElementById('main-area');
+    const oldBorderTop=el.style.borderTop;
+    el.style.borderTop='1px solid var(--border-dark)';
+    html2canvas(el,{backgroundColor:state.theme==='dark'?'#0f172a':'#f3f4f6',scale:3,useCORS:true}).then(c=>{
+        el.style.borderTop=oldBorderTop;
+        const a=document.createElement('a');a.download=`${state.projectName}.png`;a.href=c.toDataURL('image/png',1.0);a.click();
         toast('ส่งออกรูปภาพเรียบร้อย','success');
-    }).catch(()=>toast('ส่งออกรูปภาพไม่สำเร็จ','error'));
+    }).catch(()=>{
+        el.style.borderTop=oldBorderTop;
+        toast('ส่งออกรูปภาพไม่สำเร็จ','error');
+    });
 };
 
 // ── SCROLL SYNC ───────────────────────────────────────
