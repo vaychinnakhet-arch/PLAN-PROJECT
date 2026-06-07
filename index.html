@@ -929,8 +929,8 @@
         </div>
         <div class="modal-body" style="padding:16px;">
             <div id="ai-settings-panel" style="display:none; background:var(--bg-hover); padding:12px; border-radius:8px; margin-bottom:12px; border:1px solid var(--border);">
-                <label class="form-label">OpenAI API Key <span style="font-size:10px;color:var(--text-secondary);">(บันทึกในเบราว์เซอร์เท่านั้น)</span></label>
-                <input type="password" class="form-control" id="ai-api-key" placeholder="sk-...">
+                <label class="form-label">API Key (OpenAI หรือ Gemini) <span style="font-size:10px;color:var(--text-secondary);">(บันทึกในเบราว์เซอร์เท่านั้น)</span></label>
+                <input type="password" class="form-control" id="ai-api-key" placeholder="sk-... หรือ AIza...">
                 <button class="btn btn-primary" id="btn-save-ai-key" style="margin-top:8px;width:100%;">บันทึก Key</button>
             </div>
             <div id="ai-chat-history" style="height:300px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:8px; background:var(--bg-surface); margin-bottom:12px;">
@@ -2045,22 +2045,40 @@ If user asks to add tasks, make sure IDs follow this convention. Keep the langua
 
             const userContent = `Current Tasks:\n${JSON.stringify(state.tasks, null, 2)}\n\nUser Request: ${prompt}`;
 
-            const res = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                body: JSON.stringify({
-                    model: 'gpt-4o-mini',
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: userContent }
-                    ],
-                    temperature: 0.2
-                })
-            });
-
-            if (!res.ok) throw new Error(`API Error: ${res.status}`);
-            const data = await res.json();
-            const text = data.choices[0].message.content;
+            let text = '';
+            
+            if (apiKey.startsWith('AIza')) {
+                // Gemini API
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        system_instruction: { parts: { text: systemPrompt } },
+                        contents: [{ parts: [{ text: userContent }] }],
+                        generationConfig: { temperature: 0.2 }
+                    })
+                });
+                if (!res.ok) throw new Error(`Gemini API Error: ${res.status}`);
+                const data = await res.json();
+                text = data.candidates[0].content.parts[0].text;
+            } else {
+                // OpenAI API
+                const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                    body: JSON.stringify({
+                        model: 'gpt-4o-mini',
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: userContent }
+                        ],
+                        temperature: 0.2
+                    })
+                });
+                if (!res.ok) throw new Error(`OpenAI API Error: ${res.status}`);
+                const data = await res.json();
+                text = data.choices[0].message.content;
+            }
             
             const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/```\n([\s\S]*?)\n```/);
             const rawJson = jsonMatch ? jsonMatch[1] : text;
