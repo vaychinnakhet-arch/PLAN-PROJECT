@@ -2085,10 +2085,17 @@ If user asks to add tasks, make sure IDs follow this convention. Keep the langua
                 const data = await res.json();
                 text = data.choices[0].message.content;
             }
-            
-            const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/```\n([\s\S]*?)\n```/);
-            const rawJson = jsonMatch ? jsonMatch[1] : text;
-            
+            let rawJson = text;
+            const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+            if (jsonMatch) {
+                rawJson = jsonMatch[1];
+            } else {
+                const startIdx = text.indexOf('[');
+                const endIdx = text.lastIndexOf(']');
+                if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+                    rawJson = text.substring(startIdx, endIdx + 1);
+                }
+            }
             try {
                 const newTasks = JSON.parse(rawJson.trim());
                 if (Array.isArray(newTasks)) {
