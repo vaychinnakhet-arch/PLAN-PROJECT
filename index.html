@@ -649,9 +649,9 @@
         </div>
         <div class="modal-body">
             <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">เชื่อมต่อโปรเจคทั้งหมดกับ Google Sheets (เพื่อนำไปใช้ต่อใน AppSheet หรือสำรองข้อมูล)</p>
-            <div class="form-group">
+            <div class="form-group" style="display:none;">
                 <label>Google Apps Script Web App URL</label>
-                <input type="text" id="cloud-url" placeholder="https://script.google.com/macros/s/.../exec">
+                <input type="text" id="cloud-url" value="https://script.google.com/macros/s/AKfycbwAV4cUGPxPP3UoI9TS74l8kZaeI3bO7TUeLMYc0VuKslU-sXTBTzVtLGRGmnEmMOc/exec">
             </div>
             <div style="display:flex; gap:12px; margin-top:20px;">
                 <button class="btn primary" id="btn-cloud-save" style="flex:1;">⬆️ อัปโหลดขึ้น Cloud</button>
@@ -2075,17 +2075,15 @@ const init = () => {
     document.getElementById('btn-export-img').addEventListener('click',exportImage);
 
     // Cloud Sync
-    const storedUrl = localStorage.getItem('planflow_cloud_url') || '';
-    document.getElementById('cloud-url').value = storedUrl;
+    const CLOUD_URL = "https://script.google.com/macros/s/AKfycbwAV4cUGPxPP3UoI9TS74l8kZaeI3bO7TUeLMYc0VuKslU-sXTBTzVtLGRGmnEmMOc/exec";
     
     document.getElementById('btn-sync-cloud').addEventListener('click', () => {
         document.getElementById('cloud-modal').classList.add('open');
     });
     
     document.getElementById('btn-cloud-save').addEventListener('click', async () => {
-        const url = document.getElementById('cloud-url').value.trim();
+        const url = CLOUD_URL;
         if(!url) return alert('กรุณาระบุ Web App URL');
-        localStorage.setItem('planflow_cloud_url', url);
         
         saveLocal(); // Ensure current state is saved
         const allData = {};
@@ -2114,9 +2112,8 @@ const init = () => {
     });
 
     document.getElementById('btn-cloud-load').addEventListener('click', async () => {
-        const url = document.getElementById('cloud-url').value.trim();
+        const url = CLOUD_URL;
         if(!url) return alert('กรุณาระบุ Web App URL');
-        localStorage.setItem('planflow_cloud_url', url);
         
         try {
             document.getElementById('btn-cloud-load').innerText = 'กำลังดาวน์โหลด...';
