@@ -1603,14 +1603,52 @@ const exportExcel = () => {
 };
 const exportImage = () => {
     const el=document.getElementById('main-area');
+    const tbw=document.getElementById('task-body-wrap');
+    const gs=document.getElementById('gantt-scroll');
+    const addBar=document.getElementById('task-add-bar');
+    
+    // Save original styles
     const oldBorderTop=el.style.borderTop;
-    el.style.borderTop='1px solid var(--border-dark)';
+    const oldBorder=el.style.border;
+    const oldHeight=el.style.height;
+    const oldFlex=el.style.flex;
+    const oldTbwOverflow=tbw.style.overflow;
+    const oldGsOverflow=gs.style.overflow;
+    const oldAddBarDisplay=addBar.style.display;
+    
+    // Calculate content height
+    const theadH = document.getElementById('task-header').offsetHeight || 54;
+    const tbodyH = document.getElementById('task-body').offsetHeight || 0;
+    const contentH = theadH + tbodyH;
+    
+    // Temporarily adjust for capture
+    addBar.style.display = 'none';
+    tbw.style.overflow = 'hidden';
+    gs.style.overflow = 'hidden';
+    el.style.flex = 'none';
+    el.style.height = `${contentH + 2}px`; // +2 for borders
+    el.style.border = '1px solid var(--border-dark)';
+    
     html2canvas(el,{backgroundColor:state.theme==='dark'?'#0f172a':'#f3f4f6',scale:3,useCORS:true}).then(c=>{
+        // Restore
         el.style.borderTop=oldBorderTop;
+        el.style.border=oldBorder;
+        el.style.height=oldHeight;
+        el.style.flex=oldFlex;
+        tbw.style.overflow=oldTbwOverflow;
+        gs.style.overflow=oldGsOverflow;
+        addBar.style.display=oldAddBarDisplay;
+        
         const a=document.createElement('a');a.download=`${state.projectName}.png`;a.href=c.toDataURL('image/png',1.0);a.click();
         toast('ส่งออกรูปภาพเรียบร้อย','success');
     }).catch(()=>{
         el.style.borderTop=oldBorderTop;
+        el.style.border=oldBorder;
+        el.style.height=oldHeight;
+        el.style.flex=oldFlex;
+        tbw.style.overflow=oldTbwOverflow;
+        gs.style.overflow=oldGsOverflow;
+        addBar.style.display=oldAddBarDisplay;
         toast('ส่งออกรูปภาพไม่สำเร็จ','error');
     });
 };
