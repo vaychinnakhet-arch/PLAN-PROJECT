@@ -1394,12 +1394,12 @@ const renderTaskPanel = (visible, ROW) => {
 
 const buildCols = () => {
     const cols=[];
-    cols.push({key:'id',label:'ID',style:'width:70px;flex-shrink:0;',show:state.colVisible.id});
+    cols.push({key:'id',label:'ID',style:'width:50px;flex-shrink:0;',show:state.colVisible.id});
     cols.push({key:'name',label:'Task Name',style:'flex:1;min-width:180px;',show:true});
-    cols.push({key:'dur',label:'Duration (Days)',style:'width:85px;flex-shrink:0;',show:state.colVisible.dur});
-    cols.push({key:'start',label:'Start Date',style:'width:90px;flex-shrink:0;',show:state.colVisible.start});
-    cols.push({key:'end',label:'End Date',style:'width:95px;flex-shrink:0;',show:state.colVisible.end});
-    cols.push({key:'progress',label:'Progress (%)',style:'width:105px;flex-shrink:0;',show:state.colVisible.progress});
+    cols.push({key:'dur',label:'Duration (Days)',style:'width:130px;flex-shrink:0;',show:state.colVisible.dur});
+    cols.push({key:'start',label:'Start Date',style:'width:110px;flex-shrink:0;',show:state.colVisible.start});
+    cols.push({key:'end',label:'End Date',style:'width:110px;flex-shrink:0;',show:state.colVisible.end});
+    cols.push({key:'progress',label:'Progress (%)',style:'width:110px;flex-shrink:0;',show:state.colVisible.progress});
     cols.push({key:'resource',label:'Assignee',style:'width:110px;flex-shrink:0;',show:state.colVisible.resource});
     return cols.filter(c=>c.show);
 };
