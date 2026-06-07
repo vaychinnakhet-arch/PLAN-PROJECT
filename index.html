@@ -23,7 +23,7 @@
             --accent-amber: #f59e0b;
             --border: #e5e7eb;
             --border2: #f3f4f6;
-            --border-dark: #e5e7eb;
+            --border-dark: #000000;
             --text-primary: #111827;
             --text-secondary: #6b7280;
             --text-muted: #9ca3af;
@@ -589,6 +589,50 @@
         }
         .empty-state svg { opacity: 0.3; }
         .empty-state p { font-size: 13px; }
+
+        /* ─── AI FLOATING BUTTON & CHATBOX ──────────── */
+        .ai-fab {
+            position: fixed; bottom: 24px; right: 24px; z-index: 999;
+            width: 56px; height: 56px; border-radius: 50%;
+            background: var(--text-primary); color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2); cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s; border: none;
+        }
+        .ai-fab:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+        .ai-fab svg { width: 24px; height: 24px; stroke-width: 1.5; }
+
+        .ai-chatbox {
+            position: fixed; bottom: 90px; right: 24px; z-index: 998;
+            width: 340px; height: 480px; max-height: calc(100vh - 120px);
+            background: var(--bg-surface); border: 1px solid var(--border);
+            border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+            display: flex; flex-direction: column; overflow: hidden;
+            transform: translateY(20px); opacity: 0; pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .ai-chatbox.open { transform: translateY(0); opacity: 1; pointer-events: auto; }
+        .ai-chat-header {
+            padding: 16px; background: var(--bg-surface); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between; font-weight: 600;
+        }
+        .ai-chat-close { background: none; border: none; cursor: pointer; color: var(--text-secondary); }
+        .ai-chat-close:hover { color: var(--text-primary); }
+        .ai-chat-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+        .ai-chat-input-area {
+            padding: 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; background: var(--bg-surface);
+        }
+        .ai-chat-input {
+            flex: 1; padding: 10px 14px; border: 1px solid var(--border); border-radius: 20px;
+            font-size: 13px; font-family: inherit; outline: none; background: var(--bg-card); transition: border-color 0.2s;
+        }
+        .ai-chat-input:focus { border-color: var(--accent); }
+        .ai-chat-send {
+            width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: #fff;
+            border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: transform 0.2s; flex-shrink: 0;
+        }
+        .ai-chat-send:hover { transform: scale(1.05); }
     </style>
 </head>
 <body>
@@ -674,11 +718,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>
         วันนี้
     </button>
-    
-    <button class="hbtn" id="btn-open-ai" title="AI ผู้ช่วย">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>
-        AI
-    </button>
+
 
     <div class="dropdown" id="dd-file">
         <button class="hbtn primary dropdown-toggle">
@@ -914,32 +954,32 @@
     </div>
 </div>
 
-<!-- ═══════════════════ AI MODAL ═════════════════════ -->
-<div class="modal-overlay" id="ai-modal">
-    <div class="modal-content" style="width:500px;">
-        <div class="modal-header" style="justify-content: space-between;">
-            <h3 class="modal-title">✨ AI ผู้ช่วย (PlanFlow Assistant)</h3>
-            <button class="hbtn" id="btn-ai-settings" title="ตั้งค่า API Key" style="padding:4px;font-size:16px;">⚙️</button>
+<!-- ═══════════════════ AI CHATBOX & FAB ═════════════════════ -->
+<button class="ai-fab" id="btn-fab-ai" title="AI ผู้ช่วย">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>
+</button>
+
+<div class="ai-chatbox" id="ai-chatbox">
+    <div class="ai-chat-header">
+        <div style="display:flex;align-items:center;gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>
+            AI Assistant
         </div>
-        <div class="modal-body" style="padding:16px;">
-            <div id="ai-settings-panel" style="display:none; background:var(--bg-hover); padding:12px; border-radius:8px; margin-bottom:12px; border:1px solid var(--border);">
-                <label class="form-label">API Key (OpenAI หรือ Gemini) <span style="font-size:10px;color:var(--text-secondary);">(บันทึกในเบราว์เซอร์เท่านั้น)</span></label>
-                <input type="password" class="form-control" id="ai-api-key" placeholder="sk-... หรือ AIza...">
-                <button class="btn btn-primary" id="btn-save-ai-key" style="margin-top:8px;width:100%;">บันทึก Key</button>
-            </div>
-            <div id="ai-chat-history" style="height:300px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:8px; background:var(--bg-surface); margin-bottom:12px;">
-                <div style="font-size:12px; color:var(--text-secondary); text-align:center;">เริ่มต้นใช้งาน AI โดยพิมพ์คำสั่งด้านล่าง<br>เช่น "เลื่อนงานทั้งหมดไป 3 วัน" หรือ "แตกงานย่อยให้งานที่ 1"</div>
-            </div>
-            <div style="display:flex; gap:8px;">
-                <input type="text" class="form-control" id="ai-prompt-input" placeholder="สั่ง AI ตรงนี้..." style="flex:1;">
-                <button class="btn btn-primary" id="btn-ai-send" style="padding: 0 16px;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                </button>
-            </div>
+        <div style="display:flex; gap:4px;">
+            <button class="ai-chat-close" id="ai-close">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
         </div>
-        <div class="modal-footer">
-            <button class="btn btn-ghost" id="ai-close">ปิด</button>
-        </div>
+    </div>
+
+    <div class="ai-chat-body" id="ai-chat-history">
+        <div style="font-size:12px; color:var(--text-secondary); text-align:center; margin-bottom: 12px;">เริ่มต้นใช้งาน AI โดยพิมพ์คำสั่งด้านล่าง<br>เช่น "เลื่อนงานทั้งหมดไป 3 วัน"</div>
+    </div>
+    <div class="ai-chat-input-area">
+        <input type="text" class="ai-chat-input" id="ai-prompt-input" placeholder="สั่ง AI ตรงนี้...">
+        <button class="ai-chat-send" id="btn-ai-send">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        </button>
     </div>
 </div>
 
@@ -1993,25 +2033,12 @@ const init = () => {
     document.getElementById('cal-today').addEventListener('click',()=>{state.calDate=new Date();render();});
 
     // ── AI ASSISTANT LOGIC ────────────────────────────────
-    const aiModal = document.getElementById('ai-modal');
+    const aiChatbox = document.getElementById('ai-chatbox');
     const aiChat = document.getElementById('ai-chat-history');
     const aiInput = document.getElementById('ai-prompt-input');
     
-    const savedKey = localStorage.getItem('planflow_openai_key');
-    if (savedKey) document.getElementById('ai-api-key').value = savedKey;
-
-    document.getElementById('btn-open-ai').addEventListener('click', () => aiModal.classList.add('show'));
-    document.getElementById('ai-close').addEventListener('click', () => aiModal.classList.remove('show'));
-    document.getElementById('btn-ai-settings').addEventListener('click', () => {
-        const p = document.getElementById('ai-settings-panel');
-        p.style.display = p.style.display === 'none' ? 'block' : 'none';
-    });
-    document.getElementById('btn-save-ai-key').addEventListener('click', () => {
-        const k = document.getElementById('ai-api-key').value.trim();
-        if(k) { localStorage.setItem('planflow_openai_key', k); toast('บันทึก API Key แล้ว', 'success'); }
-        else { localStorage.removeItem('planflow_openai_key'); toast('ลบ API Key แล้ว', 'info'); }
-        document.getElementById('ai-settings-panel').style.display = 'none';
-    });
+    document.getElementById('btn-fab-ai').addEventListener('click', () => aiChatbox.classList.toggle('open'));
+    document.getElementById('ai-close').addEventListener('click', () => aiChatbox.classList.remove('open'));
 
     const addAiMsg = (text, type) => {
         const d = document.createElement('div');
@@ -2024,9 +2051,6 @@ const init = () => {
     const processAiRequest = async () => {
         const prompt = aiInput.value.trim();
         if (!prompt) return;
-        const apiKey = document.getElementById('ai-api-key').value.trim();
-        if (!apiKey) { toast('กรุณาตั้งค่า API Key ก่อนใช้งาน', 'error'); document.getElementById('ai-settings-panel').style.display='block'; return; }
-        
         aiInput.value = '';
         addAiMsg(prompt, 'user');
         
@@ -2037,56 +2061,19 @@ const init = () => {
         aiChat.scrollTop = aiChat.scrollHeight;
 
         try {
-            const systemPrompt = `You are an AI assistant for a project management app. 
-The user wants to modify the project plan. The current tasks are provided as JSON.
-You must return the updated tasks array in a strict JSON format within a markdown code block (\`\`\`json ... \`\`\`).
-Do NOT provide explanations outside the JSON block. ONLY return valid JSON that can be parsed by JSON.parse().
-Each task object has properties: id(string), name(string), type('manual'|'auto'), start(string YYYY-MM-DD), end(string YYYY-MM-DD), duration(number), progress(number 0-100), dependencies(string e.g. "1FS"), resource(string).
-Parent tasks (type='auto') summarize their children. Child tasks have IDs starting with parent ID + "." (e.g., parent "1", children "1.1", "1.2").
-If user asks to add tasks, make sure IDs follow this convention. Keep the language in Thai.`;
-
-            const userContent = `Current Tasks:\n${JSON.stringify(state.tasks, null, 2)}\n\nUser Request: ${prompt}`;
-
-            let text = '';
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt, tasks: state.tasks })
+            });
             
-            if (apiKey.startsWith('AIza')) {
-                // Gemini API
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        system_instruction: { parts: { text: systemPrompt } },
-                        contents: [{ parts: [{ text: userContent }] }],
-                        generationConfig: { temperature: 0.2 }
-                    })
-                });
-                if (!res.ok) {
-                    const err = await res.json().catch(()=>({}));
-                    throw new Error(`Gemini: ${err.error?.message || res.status}`);
-                }
-                const data = await res.json();
-                text = data.candidates[0].content.parts[0].text;
-            } else {
-                // OpenAI API
-                const res = await fetch('https://api.openai.com/v1/chat/completions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                    body: JSON.stringify({
-                        model: 'gpt-4o-mini',
-                        messages: [
-                            { role: 'system', content: systemPrompt },
-                            { role: 'user', content: userContent }
-                        ],
-                        temperature: 0.2
-                    })
-                });
-                if (!res.ok) {
-                    const err = await res.json().catch(()=>({}));
-                    throw new Error(`OpenAI: ${err.error?.message || res.status}`);
-                }
-                const data = await res.json();
-                text = data.choices[0].message.content;
+            if (!res.ok) {
+                const err = await res.json().catch(()=>({}));
+                throw new Error(err.error || `Server Error: ${res.status}`);
             }
+            
+            const data = await res.json();
+            let text = data.text;
             let rawJson = text;
             const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
             if (jsonMatch) {
