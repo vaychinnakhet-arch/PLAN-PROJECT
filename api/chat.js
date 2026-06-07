@@ -41,11 +41,12 @@ If user asks to add tasks, make sure IDs follow this convention. Keep the langua
             return res.status(200).json({ text: data.choices[0].message.content });
 
         } else if (process.env.GEMINI_API_KEY) {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    contents: [{ parts: [{ text: systemPrompt + "\n\n" + userContent }] }],
+                    system_instruction: { parts: { text: systemPrompt } },
+                    contents: [{ parts: [{ text: userContent }] }],
                     generationConfig: { temperature: 0.2 }
                 })
             });
