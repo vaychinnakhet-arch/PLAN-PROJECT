@@ -1388,7 +1388,7 @@ const triggerAutoSync = () => {
 };
 
 const saveLocal = (forceId = currentProjectId) => {
-    const d={projectName:state.projectName,tasks:state.tasks.map(t=>({...t,start:fmtDate(t.start),end:fmtDate(t.end),actualStart:fmtDate(t.actualStart),actualEnd:fmtDate(t.actualEnd),baselineStart:fmtDate(t.baselineStart),baselineEnd:fmtDate(t.baselineEnd)})),workOnSundays:state.workOnSundays,workOnHolidays:state.workOnHolidays,holidays:state.holidays};
+    const d={projectName:state.projectName,tasks:state.tasks.map(t=>({...t,start:fmtDate(t.start),end:fmtDate(t.end),actualStart:fmtDate(t.actualStart),actualEnd:fmtDate(t.actualEnd),baselineStart:fmtDate(t.baselineStart),baselineEnd:fmtDate(t.baselineEnd)})),workOnSundays:state.workOnSundays,workOnHolidays:state.workOnHolidays,holidays:state.holidays,colVisible:state.colVisible};
     localStorage.setItem(`planflow_proj_${forceId}`,JSON.stringify(d));
     let list = getProjectsList();
     const p = list.find(x => x.id === forceId);
@@ -1407,6 +1407,8 @@ const loadLocal = () => {
         state.workOnSundays=d.workOnSundays||false;
         state.workOnHolidays=d.workOnHolidays||false;
         if(d.holidays) state.holidays={...state.holidays,...d.holidays};
+        // Restore column visibility (default all true if not saved)
+        if(d.colVisible) state.colVisible={...state.colVisible,...d.colVisible};
         state.tasks=(d.tasks||[]).map((t,i)=>{
             const s=parseDate(t.start),e=parseDate(t.end);
             return{...t,start:s,end:e,order:t.order??i,duration:t.duration||workDaysDuration(s,e),actualStart:parseDate(t.actualStart),actualEnd:parseDate(t.actualEnd),baselineStart:parseDate(t.baselineStart),baselineEnd:parseDate(t.baselineEnd),schedulingMode:t.schedulingMode||'manual'};
@@ -1525,12 +1527,23 @@ const renderGantt = () => {
 const renderTaskPanel = (visible, ROW) => {
     // Header
     const cols=buildCols();
-    // Auto-size panel width to fit all visible columns (no horizontal scroll needed)
-    const totalColW = cols.reduce((sum, c) => {
-        const m = c.style.match(/width:(\d+)px/);
-        return sum + (m ? parseInt(m[1]) : 0);
-    }, 0);
+    // Auto-size panel width to fit ALL visible columns — use explicit per-key widths, not regex
+    const COL_WIDTHS = { id: 50, name: Math.max(200, Math.min(300, (() => {
+        let w = 200;
+        if(state.tasks && state.tasks.length > 0) {
+            state.tasks.forEach(t => {
+                const lv = getLevel(t);
+                const cw = Math.round(t.name.length * 7.5) + (lv * 18) + 80;
+                if(cw > w) w = cw;
+            });
+        }
+        return w;
+    })()), dur: 130, start: 110, end: 110, progress: 110, resource: 110 };
+    const totalColW = cols.reduce((sum, c) => sum + (COL_WIDTHS[c.key] || 110), 0);
     document.getElementById('task-panel').style.width = (totalColW + 2) + 'px';
+
+    // Re-apply correct fixed widths to each column using the same COL_WIDTHS map
+    cols.forEach(c => { c.style = `width:${COL_WIDTHS[c.key] || 110}px;flex-shrink:0;`; });
 
     const hdr=document.getElementById('task-header');
     hdr.innerHTML=cols.map(c=>`<div class="th-cell" style="${c.style}">${c.label}</div>`).join('');
