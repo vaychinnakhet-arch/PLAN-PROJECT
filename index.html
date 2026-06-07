@@ -1394,13 +1394,13 @@ const renderTaskPanel = (visible, ROW) => {
 
 const buildCols = () => {
     const cols=[];
-    cols.push({key:'id',label:'รหัสงาน (ID)',style:'width:70px;flex-shrink:0;',show:state.colVisible.id});
-    cols.push({key:'name',label:'ชื่อกิจกรรม (Task Name)',style:'flex:1;min-width:180px;',show:true});
-    cols.push({key:'dur',label:'ระยะเวลา (วัน)',style:'width:85px;flex-shrink:0;',show:state.colVisible.dur});
-    cols.push({key:'start',label:'วันที่เริ่ม (Start)',style:'width:90px;flex-shrink:0;',show:state.colVisible.start});
-    cols.push({key:'end',label:'กำหนดเสร็จ (End)',style:'width:95px;flex-shrink:0;',show:state.colVisible.end});
-    cols.push({key:'progress',label:'ความคืบหน้า (%)',style:'width:105px;flex-shrink:0;',show:state.colVisible.progress});
-    cols.push({key:'resource',label:'ผู้รับผิดชอบ',style:'width:110px;flex-shrink:0;',show:state.colVisible.resource});
+    cols.push({key:'id',label:'ID',style:'width:70px;flex-shrink:0;',show:state.colVisible.id});
+    cols.push({key:'name',label:'Task Name',style:'flex:1;min-width:180px;',show:true});
+    cols.push({key:'dur',label:'Duration (Days)',style:'width:85px;flex-shrink:0;',show:state.colVisible.dur});
+    cols.push({key:'start',label:'Start Date',style:'width:90px;flex-shrink:0;',show:state.colVisible.start});
+    cols.push({key:'end',label:'End Date',style:'width:95px;flex-shrink:0;',show:state.colVisible.end});
+    cols.push({key:'progress',label:'Progress (%)',style:'width:105px;flex-shrink:0;',show:state.colVisible.progress});
+    cols.push({key:'resource',label:'Assignee',style:'width:110px;flex-shrink:0;',show:state.colVisible.resource});
     return cols.filter(c=>c.show);
 };
 const getLevel = t => {
@@ -1660,7 +1660,7 @@ const loadProjectFile = (file) => {
     r.readAsText(file);
 };
 const exportCSV = () => {
-    const h=['รหัสงาน (ID)','ชื่อกิจกรรม (Task Name)','ระยะเวลา (วัน)','วันที่เริ่ม (Start)','กำหนดเสร็จ (End)','ผู้รับผิดชอบ','ความคืบหน้า (%)','Dependencies'];
+    const h=['ID','Task Name','Duration (Days)','Start Date','End Date','Assignee','Progress (%)','Dependencies'];
     const rows=state.tasks.map(t=>[t.id,`"${t.name}"`,t.duration||0,fmtDate(t.start),fmtDate(t.end),`"${t.resource||''}"`,t.progress||0,`"${t.dependencies||''}"`].join(','));
     const blob=new Blob([[h.join(','),...rows].join('\n')],{type:'text/csv;charset=utf-8'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${state.projectName}.csv`;a.click();
@@ -1669,7 +1669,7 @@ const exportCSV = () => {
 const exportExcel = () => {
     const map=new Map(state.tasks.map(t=>[t.id,t]));
     const getLevel=t=>{let l=0;let cur=t;while(cur.parentId){cur=map.get(cur.parentId);if(!cur)break;l++;}return l;};
-    let html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>table,th,td{border:1px solid #ccc;border-collapse:collapse}th{background:#f9fafb;color:#1f2937;padding:6px}td{padding:5px}</style></head><body><table><thead><tr><th>รหัสงาน (ID)</th><th>ชื่อกิจกรรม (Task Name)</th><th>ระยะเวลา (วัน)</th><th>วันที่เริ่ม (Start)</th><th>กำหนดเสร็จ (End)</th><th>ผู้รับผิดชอบ</th><th>ความคืบหน้า (%)</th></tr></thead><tbody>`;
+    let html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>table,th,td{border:1px solid #ccc;border-collapse:collapse}th{background:#f9fafb;color:#1f2937;padding:6px}td{padding:5px}</style></head><body><table><thead><tr><th>ID</th><th>Task Name</th><th>Duration (Days)</th><th>Start Date</th><th>End Date</th><th>Assignee</th><th>Progress (%)</th></tr></thead><tbody>`;
     const addRow=t=>{
         const l=getLevel(t); const indent='&nbsp;'.repeat(l*4);
         html+=`<tr><td>${t.id}</td><td>${indent}${t.name}</td><td>${t.duration||0}</td><td>${fmtDate(t.start)}</td><td>${fmtDate(t.end)}</td><td>${t.resource||''}</td><td>${t.progress||0}%</td></tr>`;
