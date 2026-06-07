@@ -1527,18 +1527,17 @@ const renderGantt = () => {
 const renderTaskPanel = (visible, ROW) => {
     // Header
     const cols=buildCols();
-    // Auto-size panel width to fit ALL visible columns — use explicit per-key widths, not regex
-    const COL_WIDTHS = { id: 50, name: Math.max(200, Math.min(300, (() => {
-        let w = 200;
-        if(state.tasks && state.tasks.length > 0) {
-            state.tasks.forEach(t => {
-                const lv = getLevel(t);
-                const cw = Math.round(t.name.length * 7.5) + (lv * 18) + 80;
-                if(cw > w) w = cw;
-            });
-        }
-        return w;
-    })()), dur: 130, start: 110, end: 110, progress: 110, resource: 110 };
+    // Auto-size panel: compute name col width first, then build fixed COL_WIDTHS map
+    let nameW = 200;
+    if(state.tasks && state.tasks.length > 0) {
+        state.tasks.forEach(t => {
+            const lv = getLevel(t);
+            const cw = Math.round(t.name.length * 7.5) + (lv * 18) + 80;
+            if(cw > nameW) nameW = cw;
+        });
+    }
+    nameW = Math.max(200, Math.min(300, nameW));
+    const COL_WIDTHS = { id: 50, name: nameW, dur: 130, start: 110, end: 110, progress: 110, resource: 110 };
     const totalColW = cols.reduce((sum, c) => sum + (COL_WIDTHS[c.key] || 110), 0);
     document.getElementById('task-panel').style.width = (totalColW + 2) + 'px';
 
@@ -2117,10 +2116,8 @@ const loadFromCloud = async () => {
 };
 
 // ── INIT & EVENTS ─────────────────────────────────────
-const init = async () => {
-    // โหลดจาก Cloud ก่อนเสมอ (single source of truth)
-    await loadFromCloud();
-    // Load data
+const init = () => {
+    // Load local data first (app is ready immediately)
     migrateIfNeeded();
     if(!loadLocal()){
         state.tasks=getSampleTasks();
@@ -2418,8 +2415,18 @@ const init = async () => {
     document.getElementById('btn-ai-send').addEventListener('click', processAiRequest);
     aiInput.addEventListener('keydown', e => { if(e.key === 'Enter') processAiRequest(); });
 
-    // Initial render
+    // Initial render (immediate, no blocking)
     render();
+
+    // Background cloud sync — runs AFTER app is up (non-blocking)
+    setTimeout(() => {
+        loadFromCloud().then(cloudLoaded => {
+            if(cloudLoaded) {
+                // Cloud had data — reload local and re-render
+                if(loadLocal()) { render(); }
+            }
+        }).catch(e => console.warn('Background cloud sync error:', e));
+    }, 500); // small delay so UI is fully ready first
 
     // Scroll to today
     window.addEventListener('load',()=>{
