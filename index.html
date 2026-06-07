@@ -1695,7 +1695,7 @@ const renderGanttChart = (visible, totalDays, totalW, totalH, ROW, dw) => {
 
     const panelH = document.getElementById('gantt-panel').offsetHeight;
     const headerH = document.getElementById('gantt-header').offsetHeight || 54;
-    const canvasH = Math.max(totalH, panelH - headerH);
+    const canvasH = totalH;
 
     document.getElementById('gantt-bars').innerHTML=barsHtml;
     document.getElementById('gantt-canvas').style.width=`${totalW}px`;
