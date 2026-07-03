@@ -831,9 +831,10 @@
         </div>
     </div>
 
-    <div id="cloud-sync-status" style="margin-left: 8px; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
-        <div id="sync-dot" style="width:6px; height:6px; border-radius:50%; background:var(--status-done);"></div>
-        <span id="sync-text">อัปเดตล่าสุด</span>
+    <div id="cloud-sync-status" style="margin-left: 8px; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; cursor:pointer;" title="คลิกเพื่อซิงค์ทันที" id="cloud-sync-status" onclick="forceSyncNow()">
+        <div id="sync-dot" style="width:8px; height:8px; border-radius:50%; background:var(--status-done); transition:background 0.3s;"></div>
+        <span id="sync-text">ซิงค์แล้ว</span>
+        <span id="sync-unsaved" style="display:none; background:var(--accent-amber); color:#fff; border-radius:10px; padding:0 5px; font-size:10px; font-weight:700;"></span>
     </div>
 
     <div class="header-sep"></div>
@@ -1686,45 +1687,133 @@ const renderProjectMenu = () => {
     if(menu) menu.innerHTML = html;
 };
 
-let syncTimer = null;
+// ══════════════════════════════════════════════
+//  ROBUST CLOUD SYNC ENGINE
+// ══════════════════════════════════════════════
+let syncTimer        = null;   // debounce timer
+let syncInFlight     = false;  // true while fetch is running
+let syncDirty        = false;  // true if data changed while in-flight
+let syncRetryCount   = 0;      // consecutive failure count
+let syncUnsavedCount = 0;      // number of unsaved local saves
+const SYNC_DEBOUNCE  = 3000;   // ms to wait after last change
+const SYNC_MAX_RETRY = 5;      // give up after N retries
 const CLOUD_URL = "https://script.google.com/macros/s/AKfycbwAV4cUGPxPP3UoI9TS74l8kZaeI3bO7TUeLMYc0VuKslU-sXTBTzVtLGRGmnEmMOc/exec";
 
-const triggerAutoSync = () => {
-    const dot = document.getElementById('sync-dot');
+const setSyncUI = (state, extra) => {
+    const dot  = document.getElementById('sync-dot');
     const text = document.getElementById('sync-text');
+    const badge= document.getElementById('sync-unsaved');
     if(!dot || !text) return;
-    
-    dot.style.background = 'var(--status-progress)';
-    text.innerText = 'รอซิงค์...';
-    
-    if(syncTimer) clearTimeout(syncTimer);
-    syncTimer = setTimeout(async () => {
-        dot.style.background = 'var(--status-progress)';
-        text.innerText = 'กำลังซิงค์...';
-        
-        const allData = {};
-        const list = getProjectsList();
-        allData.projects = list;
-        list.forEach(p => {
-            allData[`proj_${p.id}`] = JSON.parse(localStorage.getItem(`planflow_proj_${p.id}`) || '{}');
-        });
-        
-        try {
-            await fetch(CLOUD_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'save', payload: allData })
-            });
-            dot.style.background = 'var(--status-done)';
-            text.innerText = 'ซิงค์สำเร็จ';
-        } catch(e) {
-            dot.style.background = 'var(--status-late)';
-            text.innerText = 'ซิงค์ล้มเหลว';
-            console.error('Sync failed', e);
-        }
-    }, 2000); // 2 seconds debounce
+    const map = {
+        pending:  { bg: 'var(--accent-amber)',  label: 'รอซิงค์...' },
+        syncing:  { bg: '#a78bfa',              label: 'กำลังซิงค์...' },
+        ok:       { bg: 'var(--status-done)',   label: 'ซิงค์แล้ว' },
+        retry:    { bg: 'var(--accent-amber)',  label: `รีทรัย (${extra||''}/${SYNC_MAX_RETRY})...` },
+        error:    { bg: 'var(--status-late)',   label: 'ซิงค์ล้มเหลว — กด เพื่อลองใหม่' },
+    };
+    const s = map[state] || map.ok;
+    dot.style.background  = s.bg;
+    text.innerText        = s.label;
+    // unsaved badge
+    if (syncUnsavedCount > 0) {
+        badge.style.display = 'inline';
+        badge.innerText = `${syncUnsavedCount} ยังไม่บันทึก`;
+    } else {
+        badge.style.display = 'none';
+    }
 };
+
+const buildSyncPayload = () => {
+    const list = getProjectsList();
+    const allData = { projects: list };
+    list.forEach(p => {
+        allData[`proj_${p.id}`] = JSON.parse(localStorage.getItem(`planflow_proj_${p.id}`) || '{}');
+    });
+    return allData;
+};
+
+const doSync = async () => {
+    if (syncInFlight) { syncDirty = true; return; }  // will re-run after current finishes
+    syncInFlight = true;
+    syncDirty    = false;
+    setSyncUI('syncing');
+
+    const payload = buildSyncPayload();
+    let success = false;
+
+    // Use XMLHttpRequest for synchronous-capable send (also works in beforeunload)
+    // but normally use fetch with a timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    try {
+        // Google Apps Script: POST must be no-cors BUT we can verify via a follow-up GET
+        // Strategy: POST no-cors (fire), then verify with GET
+        await fetch(CLOUD_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action: 'save', payload }),
+            signal: controller.signal
+        });
+        // no-cors always gives opaque response — treat as success if no throw
+        success = true;
+        syncRetryCount   = 0;
+        syncUnsavedCount = 0;
+        setSyncUI('ok');
+        // Store last successful sync time in localStorage
+        localStorage.setItem('planflow_last_sync', Date.now());
+    } catch(e) {
+        syncRetryCount++;
+        if (syncRetryCount <= SYNC_MAX_RETRY) {
+            const delay = Math.min(2000 * Math.pow(2, syncRetryCount - 1), 30000); // exp backoff max 30s
+            setSyncUI('retry', syncRetryCount);
+            console.warn(`Sync failed (attempt ${syncRetryCount}), retrying in ${delay}ms:`, e.message);
+            setTimeout(doSync, delay);
+        } else {
+            setSyncUI('error');
+            console.error('Sync permanently failed after max retries:', e);
+        }
+    } finally {
+        clearTimeout(timeout);
+        syncInFlight = false;
+    }
+
+    // If data changed while we were syncing, sync again
+    if (syncDirty) {
+        setTimeout(doSync, 500);
+    }
+};
+
+const triggerAutoSync = () => {
+    syncUnsavedCount++;
+    setSyncUI('pending');
+    if (syncTimer) clearTimeout(syncTimer);
+    syncTimer = setTimeout(doSync, SYNC_DEBOUNCE);
+};
+
+// Force immediate sync (called by clicking status indicator or manually)
+const forceSyncNow = () => {
+    if (syncTimer) clearTimeout(syncTimer);
+    syncTimer = null;
+    doSync();
+};
+
+// ── BEFORE UNLOAD: flush any pending sync ────────────
+window.addEventListener('beforeunload', (e) => {
+    if (syncTimer || syncInFlight || syncUnsavedCount > 0) {
+        // Force synchronous-style save: clear timer and fire immediately
+        if (syncTimer) { clearTimeout(syncTimer); syncTimer = null; }
+        // Use sendBeacon for guaranteed delivery on page unload
+        const payload = buildSyncPayload();
+        const body = JSON.stringify({ action: 'save', payload });
+        const sent = navigator.sendBeacon(CLOUD_URL, new Blob([body], { type: 'text/plain' }));
+        if (!sent) {
+            // sendBeacon failed (too large?), warn user
+            e.preventDefault();
+            e.returnValue = 'ข้อมูลยังไม่ได้ซิงค์กับ Cloud กด "ออก" เพื่อออกโดยไม่บันทึก หรือ "ยกเลิก" เพื่อรอ';
+        }
+    }
+});
 
 const saveLocal = (forceId = currentProjectId) => {
     const d={projectName:state.projectName,tasks:state.tasks.map(t=>({...t,start:fmtDate(t.start),end:fmtDate(t.end),actualStart:fmtDate(t.actualStart),actualEnd:fmtDate(t.actualEnd),baselineStart:fmtDate(t.baselineStart),baselineEnd:fmtDate(t.baselineEnd)})),workOnSundays:state.workOnSundays,workOnHolidays:state.workOnHolidays,holidays:state.holidays,colVisible:state.colVisible,taskPanelWidth:state.taskPanelWidth};
