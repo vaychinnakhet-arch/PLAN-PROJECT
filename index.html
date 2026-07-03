@@ -1265,71 +1265,90 @@ const triggerDepAutoCalc = () => {
     }
 };
 
-const initDepDropdown = (hierList, selDepId, selDepType, selDepLag) => {
-    const wrap = document.getElementById('dep-search-wrap');
-    const display = document.getElementById('dep-search-display');
-    const list = document.getElementById('dep-dropdown-list');
-    const filterIn = document.getElementById('dep-filter-input');
-    const optsContainer = document.getElementById('dep-opts-container');
+// ── dep dropdown state (shared, listeners set up ONCE) ──
+let _depHierList = [];
+let _depListenersReady = false;
+
+const _depGetDisplayText = (id) => {
+    if (!id) return '— ไม่มี —';
+    const found = _depHierList.find(({task:x}) => String(x.id) === String(id));
+    return found ? `${found.task.id}: ${found.task.name}` : '— ไม่มี —';
+};
+
+const _depBuildOpts = () => {
+    const wrap       = document.getElementById('dep-search-wrap');
+    const filterIn   = document.getElementById('dep-filter-input');
+    const container  = document.getElementById('dep-opts-container');
+    const hiddenSel  = document.getElementById('f-dep-task');
+    const display    = document.getElementById('dep-search-display');
+    const q = (filterIn.value||'').toLowerCase();
+    const items = _depHierList.filter(({task:x}) =>
+        !q || String(x.id).includes(q) || x.name.toLowerCase().includes(q)
+    );
+    const curVal = hiddenSel.value;
+    if (!items.length) {
+        container.innerHTML = `<div class="dep-no-result">ไม่พบงานที่ค้นหา</div>`;
+        return;
+    }
+    container.innerHTML =
+        `<div class="dep-opt is-none${!curVal?' selected':''}" data-val="">— ไม่มี —</div>` +
+        items.map(({task:x, depth}) => {
+            const indent = depth > 0 ? `<span class="dep-opt-indent">${'│  '.repeat(depth-1)}├─ </span>` : '';
+            const isParent = _depHierList.some(({task:c}) => c.parentId === x.id);
+            const badge = isParent ? `<span class="dep-opt-badge">📁 หมวด</span>` : '';
+            return `<div class="dep-opt${String(x.id)===String(curVal)?' selected':''}" data-val="${x.id}">${indent}${x.id}: ${x.name}${badge}</div>`;
+        }).join('');
+    // attach click on each option via event delegation on container
+};
+
+// Called ONCE at app init — wires up all listeners permanently
+const setupDepDropdownListeners = () => {
+    if (_depListenersReady) return;
+    _depListenersReady = true;
+
+    const wrap      = document.getElementById('dep-search-wrap');
+    const display   = document.getElementById('dep-search-display');
+    const filterIn  = document.getElementById('dep-filter-input');
+    const container = document.getElementById('dep-opts-container');
     const hiddenSel = document.getElementById('f-dep-task');
+    const typeGrid  = document.getElementById('dep-type-grid');
 
-    // Set dep-type card selection
-    document.querySelectorAll('.dep-type-card').forEach(c => {
-        c.classList.toggle('selected', c.dataset.type === selDepType);
-    });
-
-    const getDisplayText = (id) => {
-        if (!id) return '— ไม่มี —';
-        const found = hierList.find(({task:x}) => String(x.id) === String(id));
-        return found ? `${found.task.id}: ${found.task.name}` : '— ไม่มี —';
-    };
-
-    display.value = getDisplayText(selDepId);
-
-    const buildOpts = (filter) => {
-        const q = (filter||'').toLowerCase();
-        const items = hierList.filter(({task:x}) =>
-            !q || String(x.id).includes(q) || x.name.toLowerCase().includes(q)
-        );
-        const curVal = hiddenSel.value;
-        if (!items.length) {
-            optsContainer.innerHTML = `<div class="dep-no-result">ไม่พบงานที่ค้นหา</div>`;
-            return;
-        }
-        optsContainer.innerHTML =
-            `<div class="dep-opt is-none${!curVal?' selected':''}" data-val="">— ไม่มี —</div>` +
-            items.map(({task:x, depth}) => {
-                const indent = depth > 0 ? `<span class="dep-opt-indent">${'│  '.repeat(depth-1)}├─ </span>` : '';
-                const isParent = hierList.some(({task:c}) => c.parentId === x.id);
-                const badge = isParent ? `<span class="dep-opt-badge">📁 หมวด</span>` : '';
-                return `<div class="dep-opt${String(x.id)===String(curVal)?' selected':''}" data-val="${x.id}">${indent}${x.id}: ${x.name}${badge}</div>`;
-            }).join('');
-        // click handler
-        optsContainer.querySelectorAll('.dep-opt').forEach(el => {
-            el.addEventListener('click', () => {
-                hiddenSel.value = el.dataset.val;
-                display.value = getDisplayText(el.dataset.val);
-                wrap.classList.remove('open');
-                filterIn.value = '';
-                buildOpts('');
-                hiddenSel.dispatchEvent(new Event('change'));
-            });
-        });
-    };
-
-    // open/close
+    // Toggle open/close on display click
     display.addEventListener('click', (e) => {
         e.stopPropagation();
-        const isOpen = wrap.classList.toggle('open');
-        if (isOpen) { filterIn.value=''; buildOpts(''); setTimeout(()=>filterIn.focus(),50); }
+        const opening = !wrap.classList.contains('open');
+        wrap.classList.toggle('open', opening);
+        if (opening) {
+            filterIn.value = '';
+            _depBuildOpts();
+            setTimeout(() => filterIn.focus(), 50);
+        }
     });
-    filterIn.addEventListener('input', () => buildOpts(filterIn.value));
-    document.addEventListener('click', (e) => {
-        if (!wrap.contains(e.target)) wrap.classList.remove('open');
-    }, {capture: false});
 
-    // dep type cards
-    document.getElementById('dep-type-grid').addEventListener('click', (e) => {
+    // Filter input
+    filterIn.addEventListener('input', _depBuildOpts);
+
+    // Option selection via event delegation (single listener on container)
+    container.addEventListener('click', (e) => {
+        const opt = e.target.closest('.dep-opt');
+        if (!opt) return;
+        hiddenSel.value = opt.dataset.val;
+        display.value   = _depGetDisplayText(opt.dataset.val);
+        wrap.classList.remove('open');
+        filterIn.value  = '';
+        _depBuildOpts();
+        hiddenSel.dispatchEvent(new Event('change'));
+    });
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+        if (wrap && !wrap.contains(e.target)) {
+            wrap.classList.remove('open');
+        }
+    });
+
+    // Dependency type cards
+    typeGrid.addEventListener('click', (e) => {
         const card = e.target.closest('.dep-type-card');
         if (!card) return;
         document.querySelectorAll('.dep-type-card').forEach(c => c.classList.remove('selected'));
@@ -1337,8 +1356,30 @@ const initDepDropdown = (hierList, selDepId, selDepType, selDepLag) => {
         document.getElementById('f-dep-type').value = card.dataset.type;
         triggerDepAutoCalc();
     });
+};
 
-    buildOpts('');
+// Called each time modal opens — just updates data & display state
+const initDepDropdown = (hierList, selDepId, selDepType, selDepLag) => {
+    _depHierList = hierList;
+
+    // Ensure listeners are set up (idempotent)
+    setupDepDropdownListeners();
+
+    // Reset open state
+    const wrap = document.getElementById('dep-search-wrap');
+    wrap.classList.remove('open');
+
+    // Set type card selection
+    document.querySelectorAll('.dep-type-card').forEach(c => {
+        c.classList.toggle('selected', c.dataset.type === selDepType);
+    });
+
+    // Set display text
+    document.getElementById('dep-search-display').value = _depGetDisplayText(selDepId);
+
+    // Build initial options (unfiltered)
+    document.getElementById('dep-filter-input').value = '';
+    _depBuildOpts();
 };
 
 
