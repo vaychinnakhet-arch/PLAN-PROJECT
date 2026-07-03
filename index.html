@@ -1460,13 +1460,23 @@ const isWorkingDay = d => {
     if (state.holidays[ds] && !state.workOnHolidays) return false;
     return true;
 };
+// Returns the first working day strictly AFTER 'start' + n working days
+// n=0 → same working day as start (snapping forward if non-working)
+// n=1 → one working day after start (used for FS with lag=0)
 const addWorkingDays = (start, n) => {
     let cur = new Date(start); let added = 0; const dir = n >= 0 ? 1 : -1; const abs = Math.abs(n);
-    // If starting on non-working day, advance to next working day
+    // If starting on non-working day, advance to next working day first
     if (n >= 0) { while (!isWorkingDay(cur)) cur = addDays(cur, 1); }
     while (added < abs) { cur = addDays(cur, dir); if (isWorkingDay(cur)) added++; }
     return cur;
 };
+// Returns the next working day strictly after 'date' (used for FS predecessor)
+const nextWorkingDayAfter = (date) => {
+    let cur = addDays(new Date(date), 1);   // start from day AFTER pred.end
+    while (!isWorkingDay(cur)) cur = addDays(cur, 1);
+    return cur;
+};
+
 const workDaysDuration = (start, end) => {
     if (!start || !end) return 0;
     let c = new Date(start); let n = 0;
@@ -1526,7 +1536,8 @@ const calcFromDeps = task => {
         if(!pred||!pred.start||!pred.end) continue;
         const dur=Math.max(1,task.duration||1);
         let pStart;
-        if(type==='FS') pStart=addWorkingDays(pred.end, lag+1);
+        // FS: start strictly the next working day after pred ends, then add lag days
+        if(type==='FS') pStart = addWorkingDays(nextWorkingDayAfter(pred.end), lag);
         else if(type==='SS') pStart=addWorkingDays(pred.start, lag);
         else if(type==='FF'){const pe=addWorkingDays(pred.end,lag);pStart=addWorkingDays(pe,-(dur-1));}
         else{const pe=addWorkingDays(pred.start,lag);pStart=addWorkingDays(pe,-(dur-1));}
