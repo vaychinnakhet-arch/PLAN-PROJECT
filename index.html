@@ -566,6 +566,116 @@
         .drop-above { border-top: 2px solid var(--accent) !important; }
         .drop-below { border-bottom: 2px solid var(--accent) !important; }
 
+        /* ─── CUSTOM DEP DROPDOWN ────────────────────── */
+        .dep-search-wrap { position: relative; }
+        .dep-search-input {
+            width: 100%; background: var(--bg-surface); border: 1.5px solid var(--border2);
+            color: var(--text-primary); border-radius: 8px; padding: 9px 36px 9px 12px;
+            font-size: 13px; font-family: inherit; outline: none; cursor: pointer;
+            transition: all 0.2s; position: relative; z-index: 1;
+        }
+        .dep-search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+        .dep-search-arrow {
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+            pointer-events: none; color: var(--text-muted); transition: transform 0.2s; z-index: 2;
+        }
+        .dep-search-wrap.open .dep-search-arrow { transform: translateY(-50%) rotate(180deg); }
+        .dep-dropdown-list {
+            display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+            background: var(--bg-surface); border: 1.5px solid var(--accent);
+            border-radius: 10px; box-shadow: 0 8px 32px rgba(79,70,229,0.18);
+            z-index: 600; max-height: 220px; overflow-y: auto;
+            animation: ddIn 0.15s ease-out;
+        }
+        .dep-search-wrap.open .dep-dropdown-list { display: block; }
+        .dep-filter-box {
+            padding: 8px 10px 6px;
+            position: sticky; top: 0; background: var(--bg-surface);
+            border-bottom: 1px solid var(--border);
+        }
+        .dep-filter-input {
+            width: 100%; background: var(--bg-card); border: 1px solid var(--border2);
+            color: var(--text-primary); border-radius: 6px; padding: 6px 10px;
+            font-size: 12px; font-family: inherit; outline: none;
+        }
+        .dep-filter-input:focus { border-color: var(--accent); }
+        .dep-opt {
+            padding: 7px 12px; cursor: pointer; font-size: 13px;
+            color: var(--text-primary); transition: background 0.12s;
+            display: flex; align-items: center; gap: 6px;
+            border-bottom: 1px solid var(--border2);
+        }
+        .dep-opt:last-child { border-bottom: none; }
+        .dep-opt:hover, .dep-opt.highlighted { background: var(--accent-glow); color: var(--accent); }
+        .dep-opt.selected { background: rgba(79,70,229,0.12); color: var(--accent); font-weight: 700; }
+        .dep-opt.is-none { color: var(--text-muted); font-style: italic; }
+        .dep-opt-indent { display: inline-block; color: var(--border); }
+        .dep-opt-badge {
+            margin-left: auto; font-size: 10px; font-weight: 700;
+            background: var(--bg-card); color: var(--text-muted);
+            border-radius: 4px; padding: 1px 5px; white-space: nowrap;
+        }
+        .dep-no-result { padding: 10px 14px; color: var(--text-muted); font-size: 12px; text-align: center; }
+
+        /* ─── DEP TYPE CARDS ─────────────────────────── */
+        .dep-type-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 8px; margin-top: 4px;
+        }
+        .dep-type-card {
+            border: 1.5px solid var(--border2); border-radius: 10px;
+            padding: 10px 12px; cursor: pointer; transition: all 0.2s;
+            background: var(--bg-surface);
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .dep-type-card:hover { border-color: var(--accent); background: var(--accent-glow); }
+        .dep-type-card.selected {
+            border-color: var(--accent); background: rgba(79,70,229,0.12);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+        .dep-type-code {
+            font-size: 11px; font-weight: 800; color: var(--accent);
+            letter-spacing: 0.5px;
+        }
+        .dep-type-name { font-size: 12px; font-weight: 700; color: var(--text-primary); }
+        .dep-type-desc { font-size: 10px; color: var(--text-secondary); line-height: 1.4; }
+        .dep-type-bar {
+            display: flex; align-items: center; gap: 3px; margin-top: 4px;
+        }
+        .dep-bar-prev, .dep-bar-next {
+            height: 6px; border-radius: 3px; flex: 1;
+        }
+        .dep-bar-prev { background: var(--accent-teal); }
+        .dep-bar-next { background: var(--accent); }
+        .dep-bar-label { font-size: 9px; color: var(--text-muted); white-space: nowrap; }
+        .dep-bar-row { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+        .dep-bar-line { display: flex; gap: 2px; align-items: center; }
+
+        /* ─── LAG ROW ────────────────────────────────── */
+        .dep-lag-row {
+            display: flex; align-items: center; gap: 12px;
+            background: var(--bg-surface); border: 1.5px solid var(--border2);
+            border-radius: 10px; padding: 10px 14px; margin-top: 8px;
+        }
+        .dep-lag-info { flex: 1; }
+        .dep-lag-title { font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+        .dep-lag-hint { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+        .dep-lag-ctrl { display: flex; align-items: center; gap: 6px; }
+        .dep-lag-btn {
+            width: 28px; height: 28px; border-radius: 6px; border: 1.5px solid var(--border2);
+            background: var(--bg-card); color: var(--text-primary); font-size: 16px; font-weight: 700;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: all 0.15s; line-height: 1;
+        }
+        .dep-lag-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+        .dep-lag-num {
+            width: 56px; text-align: center; background: var(--bg-surface);
+            border: 1.5px solid var(--border2); border-radius: 6px;
+            padding: 4px 6px; font-size: 13px; font-weight: 700;
+            color: var(--text-primary); font-family: inherit; outline: none;
+        }
+        .dep-lag-num:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+
         /* ─── ANIMATED GRADIENT HEADER STRIPE ───────── */
         .header-glow {
             position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
@@ -954,23 +1064,90 @@
 
             <div class="form-group">
                 <div class="form-section-title">🔗 งานที่ต้องทำก่อน (Predecessor)</div>
-                <div class="form-grid" style="grid-template-columns: 2fr 1fr 1fr;">
-                    <div>
-                        <label class="form-label">งานก่อนหน้า</label>
-                        <select class="form-control" id="f-dep-task"></select>
+
+                <!-- Custom searchable dropdown -->
+                <label class="form-label" style="margin-bottom:8px;">เลือกงานก่อนหน้า</label>
+                <div class="dep-search-wrap" id="dep-search-wrap">
+                    <input type="text" class="dep-search-input" id="dep-search-display" readonly placeholder="— ไม่มี —" autocomplete="off">
+                    <svg class="dep-search-arrow" width="12" height="8" viewBox="0 0 12 8" fill="none">
+                        <path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <div class="dep-dropdown-list" id="dep-dropdown-list">
+                        <div class="dep-filter-box">
+                            <input type="text" class="dep-filter-input" id="dep-filter-input" placeholder="🔍 ค้นหางาน...">
+                        </div>
+                        <div id="dep-opts-container"></div>
                     </div>
-                    <div>
-                        <label class="form-label">ประเภท</label>
-                        <select class="form-control" id="f-dep-type">
-                            <option value="FS">Finish→Start</option>
-                            <option value="SS">Start→Start</option>
-                            <option value="FF">Finish→Finish</option>
-                            <option value="SF">Start→Finish</option>
-                        </select>
+                </div>
+                <!-- Hidden real select for form compat -->
+                <select class="form-control" id="f-dep-task" style="display:none"></select>
+
+                <!-- Dependency type visual cards -->
+                <label class="form-label" style="margin-top:14px;margin-bottom:8px;">รูปแบบการเชื่อมต่อ</label>
+                <div class="dep-type-grid" id="dep-type-grid">
+                    <div class="dep-type-card selected" data-type="FS">
+                        <div class="dep-type-code">FS</div>
+                        <div class="dep-type-name">Finish → Start</div>
+                        <div class="dep-type-bar">
+                            <div class="dep-bar-row">
+                                <div class="dep-bar-line"><div class="dep-bar-prev" style="width:60%"></div><div class="dep-bar-label" style="margin-left:3px;">งานก่อน</div></div>
+                                <div class="dep-bar-line" style="margin-left:30px;"><div class="dep-bar-next" style="width:60%"></div><div class="dep-bar-label" style="margin-left:3px;">งานนี้</div></div>
+                            </div>
+                        </div>
+                        <div class="dep-type-desc">งานนี้เริ่มหลังจากงานก่อนเสร็จ <span style="color:var(--accent-teal);font-weight:700">(แนะนำ)</span></div>
                     </div>
-                    <div>
-                        <label class="form-label">Lag (วัน)</label>
-                        <input type="number" class="form-control" id="f-dep-lag" value="0">
+                    <div class="dep-type-card" data-type="SS">
+                        <div class="dep-type-code">SS</div>
+                        <div class="dep-type-name">Start → Start</div>
+                        <div class="dep-type-bar">
+                            <div class="dep-bar-row">
+                                <div class="dep-bar-line"><div class="dep-bar-prev" style="width:60%"></div><div class="dep-bar-label" style="margin-left:3px;">งานก่อน</div></div>
+                                <div class="dep-bar-line"><div class="dep-bar-next" style="width:55%"></div><div class="dep-bar-label" style="margin-left:3px;">งานนี้</div></div>
+                            </div>
+                        </div>
+                        <div class="dep-type-desc">เริ่มพร้อมกับงานก่อนหน้า</div>
+                    </div>
+                    <div class="dep-type-card" data-type="FF">
+                        <div class="dep-type-code">FF</div>
+                        <div class="dep-type-name">Finish → Finish</div>
+                        <div class="dep-type-bar">
+                            <div class="dep-bar-row">
+                                <div class="dep-bar-line"><div class="dep-bar-prev" style="width:70%"></div><div class="dep-bar-label" style="margin-left:3px;">งานก่อน</div></div>
+                                <div class="dep-bar-line" style="margin-left:10px;"><div class="dep-bar-next" style="width:60%"></div><div class="dep-bar-label" style="margin-left:3px;">งานนี้</div></div>
+                            </div>
+                        </div>
+                        <div class="dep-type-desc">เสร็จพร้อมกับงานก่อนหน้า</div>
+                    </div>
+                    <div class="dep-type-card" data-type="SF">
+                        <div class="dep-type-code">SF</div>
+                        <div class="dep-type-name">Start → Finish</div>
+                        <div class="dep-type-bar">
+                            <div class="dep-bar-row">
+                                <div class="dep-bar-line" style="margin-left:30px;"><div class="dep-bar-prev" style="width:55%"></div><div class="dep-bar-label" style="margin-left:3px;">งานก่อน</div></div>
+                                <div class="dep-bar-line"><div class="dep-bar-next" style="width:60%"></div><div class="dep-bar-label" style="margin-left:3px;">งานนี้</div></div>
+                            </div>
+                        </div>
+                        <div class="dep-type-desc">งานนี้เสร็จก่อนงานก่อนหน้าเริ่ม</div>
+                    </div>
+                </div>
+                <!-- hidden select for compat -->
+                <select class="form-control" id="f-dep-type" style="display:none">
+                    <option value="FS">Finish→Start</option>
+                    <option value="SS">Start→Start</option>
+                    <option value="FF">Finish→Finish</option>
+                    <option value="SF">Start→Finish</option>
+                </select>
+
+                <!-- Lag control -->
+                <div class="dep-lag-row">
+                    <div class="dep-lag-info">
+                        <div class="dep-lag-title">⏱ Lag (วันเพิ่มเติม)</div>
+                        <div class="dep-lag-hint">ระยะเว้นวันหลังงานก่อนเสร็จ (ค่าลบ = เหลื่อมเวลา)</div>
+                    </div>
+                    <div class="dep-lag-ctrl">
+                        <button class="dep-lag-btn" id="dep-lag-minus">−</button>
+                        <input type="number" class="dep-lag-num" id="f-dep-lag" value="0">
+                        <button class="dep-lag-btn" id="dep-lag-plus">+</button>
                     </div>
                 </div>
             </div>
@@ -1073,7 +1250,97 @@ const THAI_MONTHS_FULL = ['มกราคม','กุมภาพันธ์',
 const THAI_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 const THAI_DAYS = ['อา','จ','อ','พ','พฤ','ศ','ส'];
 
-// ── STATE ─────────────────────────────────────────────
+// ── DEP DROPDOWN HELPERS ──────────────────────────────
+const triggerDepAutoCalc = () => {
+    if(document.getElementById('sched-auto').checked){
+        const taskId=editingTaskId;
+        const dur=parseInt(document.getElementById('f-duration').value)||1;
+        const depId=document.getElementById('f-dep-task').value;
+        const depType=document.getElementById('f-dep-type').value;
+        const lag=parseInt(document.getElementById('f-dep-lag').value)||0;
+        const tmpTask={id:taskId,duration:dur,dependencies:depId?`${depId}${depType}+${lag}`:''};
+        const nd=calcFromDeps(tmpTask);
+        if(nd){document.getElementById('f-start').value=fmtDate(nd.start);document.getElementById('f-end').value=fmtDate(nd.end);}
+    }
+};
+
+const initDepDropdown = (hierList, selDepId, selDepType, selDepLag) => {
+    const wrap = document.getElementById('dep-search-wrap');
+    const display = document.getElementById('dep-search-display');
+    const list = document.getElementById('dep-dropdown-list');
+    const filterIn = document.getElementById('dep-filter-input');
+    const optsContainer = document.getElementById('dep-opts-container');
+    const hiddenSel = document.getElementById('f-dep-task');
+
+    // Set dep-type card selection
+    document.querySelectorAll('.dep-type-card').forEach(c => {
+        c.classList.toggle('selected', c.dataset.type === selDepType);
+    });
+
+    const getDisplayText = (id) => {
+        if (!id) return '— ไม่มี —';
+        const found = hierList.find(({task:x}) => String(x.id) === String(id));
+        return found ? `${found.task.id}: ${found.task.name}` : '— ไม่มี —';
+    };
+
+    display.value = getDisplayText(selDepId);
+
+    const buildOpts = (filter) => {
+        const q = (filter||'').toLowerCase();
+        const items = hierList.filter(({task:x}) =>
+            !q || String(x.id).includes(q) || x.name.toLowerCase().includes(q)
+        );
+        const curVal = hiddenSel.value;
+        if (!items.length) {
+            optsContainer.innerHTML = `<div class="dep-no-result">ไม่พบงานที่ค้นหา</div>`;
+            return;
+        }
+        optsContainer.innerHTML =
+            `<div class="dep-opt is-none${!curVal?' selected':''}" data-val="">— ไม่มี —</div>` +
+            items.map(({task:x, depth}) => {
+                const indent = depth > 0 ? `<span class="dep-opt-indent">${'│  '.repeat(depth-1)}├─ </span>` : '';
+                const isParent = hierList.some(({task:c}) => c.parentId === x.id);
+                const badge = isParent ? `<span class="dep-opt-badge">📁 หมวด</span>` : '';
+                return `<div class="dep-opt${String(x.id)===String(curVal)?' selected':''}" data-val="${x.id}">${indent}${x.id}: ${x.name}${badge}</div>`;
+            }).join('');
+        // click handler
+        optsContainer.querySelectorAll('.dep-opt').forEach(el => {
+            el.addEventListener('click', () => {
+                hiddenSel.value = el.dataset.val;
+                display.value = getDisplayText(el.dataset.val);
+                wrap.classList.remove('open');
+                filterIn.value = '';
+                buildOpts('');
+                hiddenSel.dispatchEvent(new Event('change'));
+            });
+        });
+    };
+
+    // open/close
+    display.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = wrap.classList.toggle('open');
+        if (isOpen) { filterIn.value=''; buildOpts(''); setTimeout(()=>filterIn.focus(),50); }
+    });
+    filterIn.addEventListener('input', () => buildOpts(filterIn.value));
+    document.addEventListener('click', (e) => {
+        if (!wrap.contains(e.target)) wrap.classList.remove('open');
+    }, {capture: false});
+
+    // dep type cards
+    document.getElementById('dep-type-grid').addEventListener('click', (e) => {
+        const card = e.target.closest('.dep-type-card');
+        if (!card) return;
+        document.querySelectorAll('.dep-type-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        document.getElementById('f-dep-type').value = card.dataset.type;
+        triggerDepAutoCalc();
+    });
+
+    buildOpts('');
+};
+
+
 let state = {
     projectName: 'โครงการก่อสร้าง ระยะที่ 1',
     tasks: [],
@@ -1883,12 +2150,29 @@ const openModal = (taskId) => {
     const descendants=getDescendants(taskId); const forbidden=new Set([taskId,...descendants]);
     document.getElementById('f-parent').innerHTML=`<option value="">— ไม่มี (งานหลัก) —</option>`+
         state.tasks.filter(x=>!forbidden.has(x.id)).map(x=>`<option value="${x.id}"${x.id===t.parentId?'selected':''}>${x.id}: ${x.name}</option>`).join('');
-    // Deps
-    document.getElementById('f-dep-task').innerHTML=`<option value="">— ไม่มี —</option>`+
-        state.tasks.filter(x=>x.id!==taskId).map(x=>`<option value="${x.id}">${x.id}: ${x.name}</option>`).join('');
-    const dm=t.dependencies&&t.dependencies.match(/(\d+)(FS|SS|FF|SF)\+?(-?\d+)/);
-    if(dm){document.getElementById('f-dep-task').value=dm[1];document.getElementById('f-dep-type').value=dm[2];document.getElementById('f-dep-lag').value=dm[3]||0;}
-    else{document.getElementById('f-dep-task').value='';document.getElementById('f-dep-type').value='FS';document.getElementById('f-dep-lag').value=0;}
+    // Deps — build hierarchical ordered list
+    const buildHierarchyOrder = () => {
+        const result = [];
+        const visit = (tasks, parentId, depth) => {
+            tasks.filter(x => x.parentId === parentId && x.id !== taskId)
+                .forEach(x => { result.push({task: x, depth}); visit(tasks, x.id, depth + 1); });
+        };
+        visit(state.tasks, null, 0);
+        return result;
+    };
+    const hierList = buildHierarchyOrder();
+    // Populate hidden select
+    document.getElementById('f-dep-task').innerHTML =
+        `<option value="">— ไม่มี —</option>` +
+        hierList.map(({task:x}) => `<option value="${x.id}">${x.id}: ${x.name}</option>`).join('');
+    const dm = t.dependencies && t.dependencies.match(/(\d+)(FS|SS|FF|SF)\+?(-?\d+)/);
+    const selDepId = dm ? dm[1] : '';
+    const selDepType = dm ? dm[2] : 'FS';
+    const selDepLag = dm ? (dm[3]||0) : 0;
+    if(dm){ document.getElementById('f-dep-task').value=selDepId; document.getElementById('f-dep-type').value=selDepType; document.getElementById('f-dep-lag').value=selDepLag; }
+    else{ document.getElementById('f-dep-task').value=''; document.getElementById('f-dep-type').value='FS'; document.getElementById('f-dep-lag').value=0; }
+    // Build custom dropdown
+    initDepDropdown(hierList, selDepId, selDepType, selDepLag);
     // Color picker
     document.getElementById('color-picker').innerHTML=COLORS.map(c=>`<div style="width:24px;height:24px;border-radius:6px;background:${c};cursor:pointer;border:2px solid ${c===t.color?'#fff':'transparent'};transition:all .2s;box-shadow:${c===t.color?`0 0 8px ${c}`:'none'};" data-color="${c}" title="${c}"></div>`).join('');
     // Mode fields
@@ -1916,28 +2200,103 @@ const renderHolidayList = () => {
 
 // ── EXPORT ────────────────────────────────────────────
 const saveProjectFile = () => {
-    const data={projectName:state.projectName,tasks:state.tasks.map(t=>({...t,start:fmtDate(t.start),end:fmtDate(t.end),actualStart:fmtDate(t.actualStart),actualEnd:fmtDate(t.actualEnd),baselineStart:fmtDate(t.baselineStart),baselineEnd:fmtDate(t.baselineEnd)})),holidays:state.holidays,workOnSundays:state.workOnSundays,workOnHolidays:state.workOnHolidays};
-    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${state.projectName}.planflow.json`;a.click();
-    toast('บันทึกไฟล์เรียบร้อย','success');
+    saveLocal(); // Make sure current changes are saved
+    const list = getProjectsList();
+    const projectsData = {};
+    list.forEach(p => {
+        const raw = localStorage.getItem(`planflow_proj_${p.id}`);
+        if(raw) projectsData[p.id] = JSON.parse(raw);
+    });
+
+    const data = {
+        isWorkspaceBackup: true,
+        version: 2,
+        projectsList: list,
+        projectsData: projectsData
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `planflow_workspace_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('บันทึก Backup ระบบเรียบร้อย ✓', 'success');
 };
+
 const loadProjectFile = (file) => {
-    const r=new FileReader();
-    r.onload=e=>{try{
-        const d=JSON.parse(e.target.result);
-        state.projectName=d.projectName||state.projectName;
-        state.workOnSundays=d.workOnSundays||false;
-        state.workOnHolidays=d.workOnHolidays||false;
-        if(d.holidays) state.holidays={...state.holidays,...d.holidays};
-        state.tasks=(d.tasks||[]).map((t,i)=>{
-            const s=parseDate(t.start),en=parseDate(t.end);
-            return{...t,start:s,end:en,order:t.order??i,duration:t.duration||workDaysDuration(s,en),actualStart:parseDate(t.actualStart),actualEnd:parseDate(t.actualEnd),baselineStart:parseDate(t.baselineStart),baselineEnd:parseDate(t.baselineEnd),schedulingMode:t.schedulingMode||'manual'};
-        });
-        document.getElementById('project-name-input').value=state.projectName;
-        reevalAutoTasks(); updateParentDates(); render();
-        toast('โหลดโครงการเรียบร้อย','success');
-    }catch(err){toast('โหลดไฟล์ไม่สำเร็จ','error');console.error(err);}};
-    r.readAsText(file);
+    if (!file) return;
+    const r = new FileReader();
+    r.onload = e => {
+        try {
+            const d = JSON.parse(e.target.result);
+            
+            // --- Workspace Backup Import ---
+            if (d.isWorkspaceBackup) {
+                if (!confirm(`โหลดไฟล์ Backup ระบบ จะลบและเขียนทับทุกโปรเจคที่มีในเครื่องตอนนี้ ยืนยันหรือไม่?`)) return;
+                
+                saveProjectsList(d.projectsList);
+                for (const [id, projData] of Object.entries(d.projectsData)) {
+                    localStorage.setItem(`planflow_proj_${id}`, JSON.stringify(projData));
+                }
+                
+                // switch to first project
+                if (d.projectsList && d.projectsList.length > 0) {
+                    currentProjectId = d.projectsList[0].id;
+                    localStorage.setItem('planflow_active_project', currentProjectId);
+                }
+                
+                if (loadLocal()) {
+                    reevalAutoTasks();
+                    updateParentDates();
+                    renderProjectMenu();
+                    render();
+                    toast(`กู้คืนระบบเรียบร้อย — ${d.projectsList.length} โครงการ`, 'success');
+                } else {
+                    toast('พบข้อผิดพลาดขณะโหลดโปรเจค', 'error');
+                }
+                return;
+            }
+
+            // --- Single Project Import (Fallback for old files) ---
+            if (!d || !Array.isArray(d.tasks)) {
+                toast('ไฟล์ JSON ไม่ถูกต้อง', 'error');
+                return;
+            }
+            if (state.tasks.length > 0) {
+                if (!confirm(`โหลดไฟล์นี้จะทับข้อมูลโครงการปัจจุบัน "${state.projectName}" ยืนยันหรือไม่?`)) return;
+            }
+            state.projectName = d.projectName || state.projectName;
+            state.workOnSundays = d.workOnSundays || false;
+            state.workOnHolidays = d.workOnHolidays || false;
+            if (d.holidays) state.holidays = { ...state.holidays, ...d.holidays };
+            if (d.colVisible) state.colVisible = { ...state.colVisible, ...d.colVisible };
+            if (d.taskPanelWidth) state.taskPanelWidth = d.taskPanelWidth;
+            state.tasks = (d.tasks || []).map((t, i) => {
+                const s = parseDate(t.start), en = parseDate(t.end);
+                return {
+                    ...t, start: s, end: en, order: t.order ?? i,
+                    duration: t.duration || workDaysDuration(s, en),
+                    actualStart: parseDate(t.actualStart),
+                    actualEnd: parseDate(t.actualEnd),
+                    baselineStart: parseDate(t.baselineStart),
+                    baselineEnd: parseDate(t.baselineEnd),
+                    schedulingMode: t.schedulingMode || 'manual'
+                };
+            });
+            reevalAutoTasks();
+            updateParentDates();
+            saveLocal();
+            renderProjectMenu();
+            render();
+            toast(`โหลด "${file.name}" สำเร็จ`, 'success');
+        } catch (err) {
+            console.error('JSON load error:', err);
+            toast('โหลดไฟล์ JSON ไม่สำเร็จ: ' + err.message, 'error');
+        }
+    };
+    r.onerror = () => toast('อ่านไฟล์ไม่ได้', 'error');
+    r.readAsText(file, 'UTF-8');
 };
 const exportCSV = () => {
     const h=['ID','Task Name','Duration (Days)','Start Date','End Date','Assignee','Progress (%)','Dependencies'];
@@ -2594,18 +2953,19 @@ const init = () => {
     document.getElementById('f-duration').addEventListener('input',()=>syncModalDates('duration'));
     document.getElementById('f-start').addEventListener('input',()=>syncModalDates('start'));
     document.getElementById('f-end').addEventListener('input',()=>syncModalDates('end'));
-    document.getElementById('f-dep-task').addEventListener('change',()=>{
-        if(document.getElementById('sched-auto').checked){
-            const taskId=editingTaskId;
-            const dur=parseInt(document.getElementById('f-duration').value)||1;
-            const depId=document.getElementById('f-dep-task').value;
-            const depType=document.getElementById('f-dep-type').value;
-            const lag=parseInt(document.getElementById('f-dep-lag').value)||0;
-            const tmpTask={id:taskId,duration:dur,dependencies:depId?`${depId}${depType}+${lag}`:''};
-            const nd=calcFromDeps(tmpTask);
-            if(nd){document.getElementById('f-start').value=fmtDate(nd.start);document.getElementById('f-end').value=fmtDate(nd.end);}
-        }
+    // Lag +/- buttons
+    document.getElementById('dep-lag-minus').addEventListener('click',()=>{
+        const el=document.getElementById('f-dep-lag');
+        el.value=parseInt(el.value||0)-1;
+        triggerDepAutoCalc();
     });
+    document.getElementById('dep-lag-plus').addEventListener('click',()=>{
+        const el=document.getElementById('f-dep-lag');
+        el.value=parseInt(el.value||0)+1;
+        triggerDepAutoCalc();
+    });
+    document.getElementById('f-dep-task').addEventListener('change',triggerDepAutoCalc);
+    document.getElementById('f-dep-lag').addEventListener('change',triggerDepAutoCalc);
     document.getElementById('color-picker').addEventListener('click',e=>{
         const d=e.target.closest('[data-color]');
         if(!d) return;
