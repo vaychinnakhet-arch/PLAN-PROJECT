@@ -2218,20 +2218,30 @@ const renderDeps = (visible, ROW, dw) => {
         const el=document.querySelector(`#gantt-bars [data-id="${t.id}"]`);
         if(!el||!t.start||!t.end) return;
         const l=parseFloat(el.style.left),w=parseFloat(el.style.width),top=i*ROW;
-        pos.set(t.id,{x:l,y:top,w,mid:top+ROW/2});
+        pos.set(String(t.id),{x:l,y:top,w,mid:top+ROW/2});
     });
     let svg='';
     visible.forEach(t=>{
         if(!t.dependencies) return;
+        // Do not draw dependency arrows from parent tasks as they are aggregate bars
+        const isParentTask = state.tasks.some(c => String(c.parentId) === String(t.id));
+        if(isParentTask) return;
+
         t.dependencies.split(',').forEach(dep=>{
-            const m=dep.trim().match(/(\d+)(FS|SS|FF|SF)\+?(-?\d+)/);
+            // Use exact boundary matching ^...$ to avoid parsing mistakes
+            const m=dep.trim().match(/^([\d.]+)(FS|SS|FF|SF)\+?(-?\d+)$/);
             if(!m) return;
-            const fid=parseInt(m[1]),type=m[2];
-            const fp=pos.get(fid),tp=pos.get(t.id);
+            const fid=m[1],type=m[2];
+            
+            // Skip drawing if the predecessor is a parent task
+            const isPredParent = state.tasks.some(c => String(c.parentId) === String(fid));
+            if(isPredParent) return;
+
+            const fp=pos.get(String(fid)),tp=pos.get(String(t.id));
             if(!fp||!tp) return;
             const fx=type.startsWith('S')?fp.x:fp.x+fp.w;
             const tx=type.endsWith('S')?tp.x:tp.x+tp.w;
-            const isCrit=state.showCritical&&t.isCritical&&state.tasks.find(x=>x.id===fid)?.isCritical;
+            const isCrit=state.showCritical&&t.isCritical&&state.tasks.find(x=>String(x.id)===String(fid))?.isCritical;
             const color=isCrit?'#ff5370':'rgba(108,99,255,0.5)';
             svg+=`<path d="M${fx},${fp.mid} C${fx+30},${fp.mid} ${tx-30},${tp.mid} ${tx},${tp.mid}" stroke="${color}" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>`;
         });
