@@ -1714,6 +1714,15 @@ const updateParentDates = () => {
         p.start=new Date(Math.min(...allDates.map(d=>d.getTime())));
         p.end=new Date(Math.max(...allDates.map(d=>d.getTime())));
         p.duration=workDaysDuration(p.start,p.end);
+        
+        // Calculate parent progress
+        const totalDur = children.reduce((sum, c) => sum + (c.duration || 0), 0);
+        if (totalDur > 0) {
+            p.progress = Math.round(children.reduce((sum, c) => sum + ((c.progress || 0) * (c.duration || 0)), 0) / totalDur);
+        } else {
+            p.progress = Math.round(children.reduce((sum, c) => sum + (c.progress || 0), 0) / children.length) || 0;
+        }
+
         if(p.parentId!==null) processParent(p.parentId);
     };
     parents.forEach(processParent);
@@ -3332,10 +3341,16 @@ const init = () => {
                 }
                 
                 if (showProg) {
+                    const pct = t.progress || 0;
                     const td = document.createElement('td');
                     td.className = 'col-dur';
                     td.style.textAlign = 'center';
-                    td.textContent = (t.progress || 0) + '%';
+                    td.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;gap:6px;">
+                        <div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;flex-shrink:0;">
+                            <div style="width:${pct}%;height:100%;background:${pct===100?'#10b981':'#f59e0b'};border-radius:3px;"></div>
+                        </div>
+                        <span style="font-size:11px;color:#6b7280;min-width:26px;text-align:right;">${pct}%</span>
+                    </div>`;
                     tr.appendChild(td);
                 }
                 
