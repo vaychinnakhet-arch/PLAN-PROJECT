@@ -782,7 +782,7 @@
             font-weight: 800;
         }
         #capture-table-element .row-child td {
-            background-color: #ffffff;
+            background-color: #fffaf7; /* Lighter tone of parent */
         }
         #capture-table-element td.col-id {
             font-weight: 800;
@@ -797,6 +797,7 @@
             display: flex;
             align-items: center;
             gap: 6px;
+            white-space: nowrap;
         }
         .capture-icon-chevron {
             color: #6b7280;
@@ -3197,6 +3198,17 @@ const init = () => {
         const cancelBtn = document.getElementById('btn-cancel-card');
         [closeBtn, cancelBtn].forEach(b => b.addEventListener('click', () => modal.classList.remove('show')));
 
+        const formatThaiDate = (dateStr) => {
+            if (!dateStr) return '—';
+            const d = new Date(dateStr);
+            if (isNaN(d)) return '—';
+            const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+            const day = d.getDate();
+            const month = months[d.getMonth()];
+            const year = (d.getFullYear() + 543).toString().slice(-2);
+            return `${day} ${month} ${year}`;
+        };
+
         const getDescendants = (parentId) => {
             let res = [];
             const children = state.tasks.filter(t => t.parentId == parentId).sort((a,b)=>a.order-b.order);
@@ -3262,12 +3274,12 @@ const init = () => {
                 // Start
                 const tdStart = document.createElement('td');
                 tdStart.className = 'col-date';
-                tdStart.textContent = fmtDate(t.start);
+                tdStart.textContent = formatThaiDate(t.start);
                 
                 // End
                 const tdEnd = document.createElement('td');
                 tdEnd.className = 'col-date';
-                tdEnd.textContent = fmtDate(t.end);
+                tdEnd.textContent = formatThaiDate(t.end);
                 
                 tr.appendChild(tdId);
                 tr.appendChild(tdName);
