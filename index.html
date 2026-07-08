@@ -3167,7 +3167,7 @@ const init = () => {
         const select = document.getElementById('card-task-select');
         const previewContainer = document.getElementById('card-preview-container');
         const emptyState = document.getElementById('card-empty-state');
-        const cardElement = document.getElementById('task-card-element');
+        const cardElement = document.getElementById('capture-table-element');
         const btnCapture = document.getElementById('btn-capture-card');
         
         let selectedCardTask = null;
@@ -3186,7 +3186,7 @@ const init = () => {
             // Reset state
             select.value = '';
             emptyState.style.display = 'block';
-            cardElement.style.display = 'none';
+            if(cardElement) cardElement.style.display = 'none';
             btnCapture.disabled = true;
             selectedCardTask = null;
             
