@@ -776,6 +776,7 @@
             text-transform: uppercase;
             font-size: 12px;
             color: #000;
+            white-space: nowrap;
         }
         #capture-table-element .row-parent td {
             background-color: #fdf4f0; /* Light pinkish */
@@ -790,8 +791,9 @@
         }
         #capture-table-element td.col-dur,
         #capture-table-element td.col-date {
-            width: 130px;
+            width: 140px;
             text-align: center;
+            white-space: nowrap;
         }
         .capture-task-name {
             display: flex;
@@ -1292,7 +1294,7 @@
                         <input type="checkbox" id="col-chk-prog"> PROGRESS
                     </label>
                     <label style="display:flex; align-items:center; gap:4px; cursor:pointer;">
-                        <input type="checkbox" id="col-chk-res"> RESOURCE
+                        <input type="checkbox" id="col-chk-assignee"> ASSIGNEE
                     </label>
                 </div>
             </div>
@@ -3248,7 +3250,7 @@ const init = () => {
             const showStart = document.getElementById('col-chk-start').checked;
             const showEnd = document.getElementById('col-chk-end').checked;
             const showProg = document.getElementById('col-chk-prog').checked;
-            const showRes = document.getElementById('col-chk-res').checked;
+            const showAssignee = document.getElementById('col-chk-assignee').checked;
             
             // Build thead
             const theadTr = document.createElement('tr');
@@ -3258,7 +3260,7 @@ const init = () => {
             if(showStart) theadTr.innerHTML += '<th class="col-date" style="text-align:center;">START DATE</th>';
             if(showEnd) theadTr.innerHTML += '<th class="col-date" style="text-align:center;">END DATE</th>';
             if(showProg) theadTr.innerHTML += '<th class="col-dur" style="text-align:center;">PROGRESS</th>';
-            if(showRes) theadTr.innerHTML += '<th>RESOURCE</th>';
+            if(showAssignee) theadTr.innerHTML += '<th>ASSIGNEE</th>';
             thead.appendChild(theadTr);
 
             const allTasks = [rootTask, ...getDescendants(rootTask.id)];
@@ -3337,9 +3339,9 @@ const init = () => {
                     tr.appendChild(td);
                 }
                 
-                if (showRes) {
+                if (showAssignee) {
                     const td = document.createElement('td');
-                    td.textContent = t.resource || '';
+                    td.textContent = t.assignee || '';
                     tr.appendChild(td);
                 }
                 
