@@ -2177,7 +2177,7 @@ const renderTaskPanel = (visible, ROW) => {
         const statusMap={done:`<div class="status-chip status-done"><div class="status-dot" style="background:var(--status-done)"></div>เสร็จ</div>`,ok:`<div class="status-chip status-ok"><div class="status-dot" style="background:var(--status-ok)"></div>ตามแผน</div>`,risk:`<div class="status-chip status-risk"><div class="status-dot" style="background:var(--status-risk)"></div>เสี่ยง</div>`,late:`<div class="status-chip status-late"><div class="status-dot" style="background:var(--status-late)"></div>ล่าช้า</div>`};
         const pct=t.progress||0;
         const colorBar=getRootColor(t);
-        const rowBg = level===0 ? `background:${colorBar}25;` : (level===1 ? `background:${colorBar}0D;` : '');
+        const rowBg = level===0 ? `background:${colorBar}25;` : (level===1 ? `background:${colorBar}0D;` : `background:${colorBar}06;`);
 
         return `<div class="task-row${isParent?' is-parent':''}${state.selectedTaskId===t.id?' selected':''}" data-id="${t.id}" draggable="true" style="${rowBg}">
             ${cols.map(c=>{
@@ -3293,7 +3293,7 @@ const init = () => {
                 tr.className = isRoot || hasChildren ? 'row-parent' : 'row-child';
                 
                 const colorBar = getRootColor(t);
-                const rowBg = level===0 ? `${colorBar}25` : (level===1 ? `${colorBar}0D` : '#ffffff');
+                const rowBg = level===0 ? `${colorBar}25` : (level===1 ? `${colorBar}0D` : `${colorBar}06`);
                 tr.style.backgroundColor = rowBg;
                 
                 if (showId) {
